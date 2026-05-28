@@ -2,40 +2,29 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>🤖 CRIPTA — Tu Consola Financiera</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0a0a0f">
 </head>
 <body>
-  <!-- Login Screen -->
-  <div id="auth-screen" class="screen active">
-    <div class="auth-container">
-      <div class="logo">🤖</div>
-      <h1>CRIPTA</h1>
-      <p class="subtitle">Tu consola financiera</p>
-
-      <div id="auth-form">
-        <input type="email" id="auth-email" placeholder="Email" autocomplete="email">
-        <input type="password" id="auth-password" placeholder="Contraseña" autocomplete="current-password">
-        <button id="btn-login" class="btn btn-primary">Entrar</button>
-        <button id="btn-register" class="btn btn-secondary">Crear cuenta</button>
-        <p id="auth-error" class="error-text"></p>
-      </div>
+  <!-- Loading -->
+  <div id="loading-screen" class="screen active" style="display:flex;align-items:center;justify-content:center;min-height:100vh;">
+    <div style="text-align:center;">
+      <div style="font-size:64px;margin-bottom:16px;">🤖</div>
+      <p style="color:#8888a0;">Cargando...</p>
     </div>
   </div>
 
-  <!-- Main App -->
+  <!-- Main App (sin login) -->
   <div id="app-screen" class="screen">
     <!-- Header -->
     <header class="header">
       <div class="header-left">
         <span class="logo-sm">🤖</span>
         <h2>CRIPTA</h2>
-      </div>
-      <div class="header-right">
-        <span id="user-email"></span>
-        <button id="btn-logout" class="btn-icon" title="Salir">🚪</button>
       </div>
     </header>
 
@@ -110,11 +99,11 @@
           </div>
           <div class="form-group">
             <label>Monto (S/)</label>
-            <input type="number" id="input-monto" step="0.01" placeholder="0.00" required>
+            <input type="number" id="input-monto" step="0.01" placeholder="0.00" required min="0.01">
           </div>
           <div class="form-group">
             <label>Descripción</label>
-            <input type="text" id="input-descripcion" placeholder="Ej: Entrega Miraflores">
+            <input type="text" id="input-descripcion" placeholder="Ej: Entrega Miraflores" maxlength="200">
           </div>
           <div class="form-group">
             <label>Categoría</label>
@@ -127,10 +116,8 @@
               <option value="otro">Otro</option>
             </select>
           </div>
-          <button type="submit" class="btn btn-primary btn-block">Registrar</button>
+          <button type="submit" class="btn btn-primary btn-block" id="btn-movimiento">Registrar</button>
         </form>
-
-        <div id="movimiento-exito" class="success-msg" style="display:none;"></div>
       </div>
     </div>
 
@@ -149,15 +136,15 @@
           <form id="form-deuda">
             <div class="form-group">
               <label>Nombre</label>
-              <input type="text" id="deuda-nombre" placeholder="Ej: Préstamo Juan" required>
+              <input type="text" id="deuda-nombre" placeholder="Ej: Préstamo Juan" required maxlength="100">
             </div>
             <div class="form-group">
               <label>Monto total (S/)</label>
-              <input type="number" id="deuda-monto" step="0.01" placeholder="0.00" required>
+              <input type="number" id="deuda-monto" step="0.01" placeholder="0.00" required min="0.01">
             </div>
             <div class="form-group">
               <label>Interés mensual (%)</label>
-              <input type="number" id="deuda-interes" step="0.1" value="0">
+              <input type="number" id="deuda-interes" step="0.1" value="0" min="0" max="100">
             </div>
             <div class="form-group">
               <label>Fecha límite</label>
@@ -165,7 +152,7 @@
             </div>
             <div class="form-actions">
               <button type="button" class="btn btn-secondary" id="btn-cancelar-deuda">Cancelar</button>
-              <button type="submit" class="btn btn-primary">Guardar</button>
+              <button type="submit" class="btn btn-primary" id="btn-guardar-deuda">Guardar</button>
             </div>
           </form>
         </div>
@@ -207,12 +194,6 @@
             <span>Presupuesto</span>
           </button>
         </div>
-      </div>
-
-      <!-- Resultado de herramientas -->
-      <div id="tool-result" class="card" style="display:none;">
-        <h3 id="tool-result-title"></h3>
-        <div id="tool-result-body"></div>
       </div>
 
       <!-- Modal Meta Diaria -->
@@ -277,7 +258,7 @@
             </div>
             <div class="form-group">
               <label>Límite semanal (S/)</label>
-              <input type="number" id="presupuesto-monto" step="0.01" required>
+              <input type="number" id="presupuesto-monto" step="0.01" required min="0.01">
             </div>
             <div class="form-actions">
               <button type="button" class="btn btn-secondary" id="btn-cancelar-presupuesto">Cancelar</button>
@@ -296,26 +277,30 @@
           <button class="btn btn-primary btn-block" id="btn-cerrar-salida">Cerrar</button>
         </div>
       </div>
-    </div>
-  </div>
 
-  <!-- Loading overlay -->
-  <div id="loading-screen" class="screen active" style="display:flex;align-items:center;justify-content:center;min-height:100vh;">
-    <div style="text-align:center;">
-      <div style="font-size:64px;margin-bottom:16px;">🤖</div>
-      <p style="color:#8888a0;">Cargando...</p>
+      <!-- Modal Pago Deuda -->
+      <div id="modal-pago" class="modal" style="display:none;">
+        <div class="modal-content">
+          <h3>💳 Pagar Deuda</h3>
+          <p id="pago-info" style="color:var(--text-dim);margin-bottom:16px;"></p>
+          <div class="form-group">
+            <label>Monto a pagar (S/)</label>
+            <input type="number" id="pago-monto" step="0.01" min="0.01" required>
+          </div>
+          <div class="form-actions">
+            <button class="btn btn-secondary" id="btn-cancelar-pago">Cancelar</button>
+            <button class="btn btn-primary" id="btn-confirmar-pago">Pagar</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
   <!-- Toast -->
   <div id="toast" class="toast"></div>
 
-  <!-- Supabase CDN — loaded BEFORE app.js -->
+  <!-- Supabase CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script>
-    // Verify Supabase loaded
-    console.log('[CRIPTA] supabase.js loaded:', typeof window.supabase !== 'undefined', 'createClient:', typeof window.supabase?.createClient);
-  </script>
   <script src="app.js"></script>
 </body>
 </html>
