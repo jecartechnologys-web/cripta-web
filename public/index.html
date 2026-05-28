@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🤖 CRIPTA — Tu Consola Financiera</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
+</head>
+<body>
+  <!-- Login Screen -->
+  <div id="auth-screen" class="screen active">
+    <div class="auth-container">
+      <div class="logo">🤖</div>
+      <h1>CRIPTA</h1>
+      <p class="subtitle">Tu consola financiera</p>
+
+      <div id="auth-form">
+        <input type="email" id="auth-email" placeholder="Email" autocomplete="email">
+        <input type="password" id="auth-password" placeholder="Contraseña" autocomplete="current-password">
+        <button id="btn-login" class="btn btn-primary">Entrar</button>
+        <button id="btn-register" class="btn btn-secondary">Crear cuenta</button>
+        <p id="auth-error" class="error-text"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main App -->
+  <div id="app-screen" class="screen">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-left">
+        <span class="logo-sm">🤖</span>
+        <h2>CRIPTA</h2>
+      </div>
+      <div class="header-right">
+        <span id="user-email"></span>
+        <button id="btn-logout" class="btn-icon" title="Salir">🚪</button>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="tabs">
+      <button class="tab active" data-tab="dashboard">📊</button>
+      <button class="tab" data-tab="registrar">💰</button>
+      <button class="tab" data-tab="deudas">🎯</button>
+      <button class="tab" data-tab="herramientas">🔮</button>
+    </nav>
+
+    <!-- Dashboard Tab -->
+    <div id="tab-dashboard" class="tab-content active">
+      <div class="card neto-card">
+        <h3>Ganancia Neta Hoy</h3>
+        <div id="neto-hoy" class="big-number">S/ 0.00</div>
+        <div class="neto-details">
+          <span class="ingreso">+<span id="neto-ingresos">0</span></span>
+          <span class="gasto">-<span id="neto-gastos">0</span></span>
+          <span class="gasolina">-<span id="neto-gasolina">0</span></span>
+        </div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon">💰</div>
+          <div class="stat-value" id="stat-ingresos-mes">0</div>
+          <div class="stat-label">Ingresos mes</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🛒</div>
+          <div class="stat-value" id="stat-gastos-mes">0</div>
+          <div class="stat-label">Gastos mes</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">⛽</div>
+          <div class="stat-value" id="stat-km-l">0</div>
+          <div class="stat-label">km/L promedio</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🎯</div>
+          <div class="stat-value" id="stat-deudas-rest">0</div>
+          <div class="stat-label">Deudas restantes</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>📈 Últimos movimientos</h3>
+        <div id="historial-list" class="list"></div>
+      </div>
+    </div>
+
+    <!-- Registrar Tab -->
+    <div id="tab-registrar" class="tab-content">
+      <div class="card">
+        <h3>Registrar movimiento</h3>
+
+        <div class="type-selector">
+          <button class="type-btn active" data-type="ingreso">💰 Ingreso</button>
+          <button class="type-btn" data-type="gasto">🛒 Gasto</button>
+          <button class="type-btn" data-type="gasolina">⛽ Gasolina</button>
+        </div>
+
+        <form id="form-movimiento">
+          <div class="form-group" id="campo-litros" style="display:none;">
+            <label>Litros</label>
+            <input type="number" id="input-litros" step="0.1" placeholder="0.0">
+          </div>
+          <div class="form-group" id="campo-km" style="display:none;">
+            <label>Km recorridos</label>
+            <input type="number" id="input-km" step="0.1" placeholder="0.0">
+          </div>
+          <div class="form-group">
+            <label>Monto (S/)</label>
+            <input type="number" id="input-monto" step="0.01" placeholder="0.00" required>
+          </div>
+          <div class="form-group">
+            <label>Descripción</label>
+            <input type="text" id="input-descripcion" placeholder="Ej: Entrega Miraflores">
+          </div>
+          <div class="form-group">
+            <label>Categoría</label>
+            <select id="input-categoria">
+              <option value="general">General</option>
+              <option value="delivery">Delivery</option>
+              <option value="comida">Comida</option>
+              <option value="transporte">Transporte</option>
+              <option value="salud">Salud</option>
+              <option value="otro">Otro</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">Registrar</button>
+        </form>
+
+        <div id="movimiento-exito" class="success-msg" style="display:none;"></div>
+      </div>
+    </div>
+
+    <!-- Deudas Tab -->
+    <div id="tab-deudas" class="tab-content">
+      <div class="card">
+        <h3>🎯 Mis Deudas</h3>
+        <div id="deudas-list" class="list"></div>
+        <button id="btn-nueva-deuda" class="btn btn-secondary btn-block">+ Nueva Deuda</button>
+      </div>
+
+      <!-- Modal Nueva Deuda -->
+      <div id="modal-deuda" class="modal" style="display:none;">
+        <div class="modal-content">
+          <h3>Agregar Deuda</h3>
+          <form id="form-deuda">
+            <div class="form-group">
+              <label>Nombre</label>
+              <input type="text" id="deuda-nombre" placeholder="Ej: Préstamo Juan" required>
+            </div>
+            <div class="form-group">
+              <label>Monto total (S/)</label>
+              <input type="number" id="deuda-monto" step="0.01" placeholder="0.00" required>
+            </div>
+            <div class="form-group">
+              <label>Interés mensual (%)</label>
+              <input type="number" id="deuda-interes" step="0.1" value="0">
+            </div>
+            <div class="form-group">
+              <label>Fecha límite</label>
+              <input type="date" id="deuda-fecha">
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn btn-secondary" id="btn-cancelar-deuda">Cancelar</button>
+              <button type="submit" class="btn btn-primary">Guardar</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px;">
+        <h3>🗓️ Próximos Pagos</h3>
+        <div id="proximos-list" class="list"></div>
+      </div>
+    </div>
+
+    <!-- Herramientas Tab -->
+    <div id="tab-herramientas" class="tab-content">
+      <div class="card">
+        <h3>🔮 Herramientas</h3>
+        <div class="tools-grid">
+          <button class="tool-btn" data-tool="meta">
+            <span class="tool-icon">🎯</span>
+            <span>Meta Diaria</span>
+          </button>
+          <button class="tool-btn" data-tool="proyectar">
+            <span class="tool-icon">📈</span>
+            <span>Proyectar</span>
+          </button>
+          <button class="tool-btn" data-tool="simular">
+            <span class="tool-icon">🧪</span>
+            <span>Simular</span>
+          </button>
+          <button class="tool-btn" data-tool="salida">
+            <span class="tool-icon">🚀</span>
+            <span>Plan Salida</span>
+          </button>
+          <button class="tool-btn" data-tool="exportar">
+            <span class="tool-icon">📥</span>
+            <span>Exportar CSV</span>
+          </button>
+          <button class="tool-btn" data-tool="presupuesto">
+            <span class="tool-icon">📋</span>
+            <span>Presupuesto</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Resultado de herramientas -->
+      <div id="tool-result" class="card" style="display:none;">
+        <h3 id="tool-result-title"></h3>
+        <div id="tool-result-body"></div>
+      </div>
+
+      <!-- Modal Meta Diaria -->
+      <div id="modal-meta" class="modal" style="display:none;">
+        <div class="modal-content">
+          <h3>🎯 Calcular Meta Diaria</h3>
+          <div id="meta-resultado"></div>
+          <button class="btn btn-primary btn-block" id="btn-cerrar-meta">Cerrar</button>
+        </div>
+      </div>
+
+      <!-- Modal Proyectar -->
+      <div id="modal-proyectar" class="modal" style="display:none;">
+        <div class="modal-content">
+          <h3>📈 Proyección</h3>
+          <div class="form-group">
+            <label>Días a proyectar</label>
+            <input type="number" id="proyectar-dias" value="7" min="1" max="90">
+          </div>
+          <div id="proyectar-resultado"></div>
+          <div class="form-actions">
+            <button class="btn btn-secondary" id="btn-cancelar-proyectar">Cancelar</button>
+            <button class="btn btn-primary" id="btn-proyectar">Calcular</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Simular -->
+      <div id="modal-simular" class="modal" style="display:none;">
+        <div class="modal-content">
+          <h3>🧪 Simular Escenario</h3>
+          <div class="form-group">
+            <label>Ingreso adicional (S/)</label>
+            <input type="number" id="simular-ingreso" step="0.01" value="0">
+          </div>
+          <div class="form-group">
+            <label>Gasto adicional (S/)</label>
+            <input type="number" id="simular-gasto" step="0.01" value="0">
+          </div>
+          <div id="simular-resultado"></div>
+          <div class="form-actions">
+            <button class="btn btn-secondary" id="btn-cancelar-simular">Cancelar</button>
+            <button class="btn btn-primary" id="btn-simular">Simular</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Presupuesto -->
+      <div id="modal-presupuesto" class="modal" style="display:none;">
+        <div class="modal-content">
+          <h3>📋 Crear Presupuesto Semanal</h3>
+          <form id="form-presupuesto">
+            <div class="form-group">
+              <label>Categoría</label>
+              <select id="presupuesto-categoria">
+                <option value="comida">Comida</option>
+                <option value="transporte">Transporte</option>
+                <option value="gasolina">Gasolina</option>
+                <option value="salud">Salud</option>
+                <option value="otro">Otro</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Límite semanal (S/)</label>
+              <input type="number" id="presupuesto-monto" step="0.01" required>
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn btn-secondary" id="btn-cancelar-presupuesto">Cancelar</button>
+              <button type="submit" class="btn btn-primary">Crear</button>
+            </div>
+          </form>
+          <div id="presupuestos-activos" style="margin-top:16px;"></div>
+        </div>
+      </div>
+
+      <!-- Modal Plan Salida -->
+      <div id="modal-salida" class="modal" style="display:none;">
+        <div class="modal-content">
+          <h3>🚀 Plan de Salida del Hueco</h3>
+          <div id="salida-resultado"></div>
+          <button class="btn btn-primary btn-block" id="btn-cerrar-salida">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="app.js"></script>
+</body>
+</html>
