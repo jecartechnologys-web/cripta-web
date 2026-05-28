@@ -4,7 +4,7 @@
 
 // Config Supabase
 const SUPABASE_URL = 'https://myaazbpmhapnqoauqlri.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_hNudTeQ9zPNdJEClgoiiGQ_IM69qqG1';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15YWF6YnBtaGFwbnFvYXVxbHJpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NDA2MTMsImV4cCI6MjA5NTUxNjYxM30.2MWlrQiz6ClP7mkOxrCVQFB0JiWGxq0RUDpNqJ20umg';
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // Estado
