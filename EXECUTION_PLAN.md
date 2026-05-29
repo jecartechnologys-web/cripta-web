@@ -72,42 +72,25 @@ Migración del bot de Telegram CRIPTA (SQLite + Python) a aplicación web modern
 
 ---
 
-### 🟡 FASE 1 — PARIDAD CON BOT (PENDIENTE)
+### 🟡 FASE 1 — PARIDAD CON BOT (COMPLETADA ✅)
 
-#### P1.1 Presupuestos Vivos (Prioridad: ALTA)
+#### P1.1 Presupuestos Vivos (Prioridad: ALTA ✅)
 ```yaml
 escenario: >
   Usuario registra gasto de S/20 en "comida".
-  La app debe buscar presupuesto activo de "comida",
-  sumar S/20 a monto_gastado, y mostrar barra de progreso.
+  La app busca presupuesto activo de "comida",
+  suma S/20 a monto_gastado, y muestra barra de progreso.
 ```
 
-**Implementación:**
-```javascript
-async function actualizarPresupuesto(categoria, monto) {
-  var today = new Date().toISOString().split('T')[0];
-  var { data: pres } = await supabase.from('presupuestos')
-    .select('*').eq('user_id', deviceId)
-    .eq('categoria', categoria)
-    .lte('fecha_inicio', today).gte('fecha_fin', today)
-    .single();
-  if (pres) {
-    await supabase.from('presupuestos')
-      .update({ monto_gastado: (pres.monto_gastado || 0) + monto })
-      .eq('id', pres.id);
-  }
-}
-```
-
-**Llamar desde:** `handleMovimiento()` (tras insertar gasto)  
-**Archivos:** `app.js` (+15 líneas)  
-**Tiempo estimado:** 30min  
-**Dependencia:** Ninguna  
-**Riesgo:** Bajo
+**Implementación:** ✅ Completada
+- `actualizarPresupuesto()` busca presupuestos activos por categoría
+- Se llama automáticamente desde `handleMovimiento()` y Modo Rápido
+- `showPresupuesto()` mejorado con barra de progreso (verde <50%, naranja <80%, rojo >80%)
+- Commit: `5b6a3c5`
 
 ---
 
-#### P1.2 Meta Diaria Inteligente (Prioridad: MEDIA)
+#### P1.2 Meta Diaria Inteligente (Prioridad: MEDIA ✅)
 ```yaml
 escenario: >
   Usuario tiene 3 deudas activas con fechas límite.
@@ -115,35 +98,30 @@ escenario: >
   pagar todo a tiempo, priorizando por interés.
 ```
 
-**Estado:** Ya existe `showMeta()` básico. Mejorar con:
-- Cálculo ponderado por tasa de interés
+**Implementación:** ✅ Completada
+- Muestra meta diaria + factibilidad vs promedio real de 30 días
+- Barra de progreso de % ingreso destinado a deudas
+- Ranking de deudas ordenado por tasa de interés
 - Sugerencia: "Si hoy ganas S/120, destina S/45 a deudas"
-- Barra de progreso diaria
-
-**Archivos:** `app.js` (modificar `showMeta()`)  
-**Tiempo estimado:** 45min  
-**Dependencia:** Ninguna  
-**Riesgo:** Bajo
+- Proyección a 30 días ("Al paso actual, tendrías S/X libre")
+- Commit: `5b6a3c5`
 
 ---
 
-#### P1.3 Gráfico Canvas 7 Días (Prioridad: MEDIA)
+#### P1.3 Gráfico Canvas 7 Días (Prioridad: MEDIA ✅)
 ```yaml
 escenario: >
   Dashboard muestra minigráfico de barras con
   ganancia neta de los últimos 7 días. Sin librerías.
 ```
 
-**Implementación:** `<canvas>` nativo + `getContext('2d')`  
-- 7 barras, una por día
-- Color verde si neto > 0, rojo si neto < 0
-- Tooltip al tap: monto exacto + fecha
-- Ancho: 100% del contenedor, alto: 120px
-
-**Archivos:** `index.html` (+1 `<canvas>`), `app.js` (+40 líneas)  
-**Tiempo estimado:** 1h  
-**Dependencia:** Datos de ingresos/gastos/gasolina  
-**Riesgo:** Bajo
+**Implementación:** ✅ Completada
+- `<canvas>` nativo en dashboard, sin dependencias
+- 7 barras: verde (neto > 0), rojo (neto < 0)
+- Etiquetas con fecha + monto sobre cada barra
+- Retina-ready (devicePixelRatio), responsive
+- Mensaje vacío si no hay datos
+- Commit: `5b6a3c5`
 
 ---
 
