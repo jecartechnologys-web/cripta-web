@@ -133,6 +133,7 @@
       document.getElementById('btn-cancelar-presupuesto').addEventListener('click', function() { hideModal('modal-presupuesto'); });
       document.getElementById('btn-cerrar-meta').addEventListener('click', function() { hideModal('modal-meta'); });
       document.getElementById('btn-cerrar-salida').addEventListener('click', function() { hideModal('modal-salida'); });
+      document.getElementById('btn-cerrar-resumen').addEventListener('click', function() { hideModal('modal-resumen'); });
       document.getElementById('btn-cancelar-pago').addEventListener('click', function() { hideModal('modal-pago'); });
       document.getElementById('btn-confirmar-pago').addEventListener('click', confirmarPago);
 
@@ -239,6 +240,65 @@
         setLoading('btn-movimiento', false);
       }
     }
+
+    // =============================================
+    // MODO RAPIDO — texto libre
+    // =============================================
+    document.getElementById('form-rapido').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      var input = document.getElementById('input-rapido');
+      var preview = document.getElementById('rapido-preview');
+      var text = input.value.trim().toLowerCase();
+      if (!text) return;
+
+      var montoMatch = text.match(/(\d+\.?\d*)/);
+      if (!montoMatch) { preview.textContent = '❌ No entendí. Ej: "gaste 20 en gasolina"'; return; }
+      var monto = parseFloat(montoMatch[1]);
+      if (monto <= 0 || monto > 999999) { preview.textContent = '❌ Monto inválido'; return; }
+      input.value = '';
+
+      var tipo = 'gasto';
+      var categoria = 'general';
+      var descripcion = text;
+      var litros = 0;
+      var km = 0;
+
+      if (text.includes('ingreso') || text.includes('gane') || text.includes('recib')) {
+        tipo = 'ingreso';
+        categoria = 'delivery';
+      } else if (text.includes('gasolina') || text.includes('tanque') || text.includes('bencina') || text.includes('grifo')) {
+        tipo = 'gasolina';
+        categoria = 'gasolina';
+        // Intentar extraer litros
+        var litrosMatch = text.match(/(\d+\.?\d*)\s*litros?/);
+        if (litrosMatch) litros = parseFloat(litrosMatch[1]);
+      } else if (text.includes('comida') || text.includes('almuerzo') || text.includes('cena') || text.includes('desayuno')) {
+        categoria = 'comida';
+      } else if (text.includes('transporte') || text.includes('pasaje') || text.includes('taxi') || text.includes('uber')) {
+        categoria = 'transporte';
+      } else if (text.includes('salud') || text.includes('doctor') || text.includes('medico') || text.includes('farmacia')) {
+        categoria = 'salud';
+      }
+
+      try {
+        var data = { user_id: deviceId, monto: monto, descripcion: descripcion, categoria: categoria };
+        if (tipo === 'gasolina') {
+          data.litros = litros;
+          data.costo = monto;
+          await supabase.from('gasolina').insert(data);
+        } else {
+          var table = tipo === 'ingreso' ? 'ingresos' : 'gastos';
+          await supabase.from(table).insert(data);
+        }
+        preview.innerHTML = '✅ <span style="color:var(--ingreso)">' + tipo.charAt(0).toUpperCase() + tipo.slice(1) + '</span> registrado: S/ ' + monto.toFixed(2) + ' (' + categoria + ')';
+        preview.style.color = 'var(--success)';
+        loadDashboard();
+      } catch (e) {
+        preview.textContent = '❌ Error de conexión';
+        preview.style.color = 'var(--error)';
+      }
+      setTimeout(function() { preview.textContent = ''; }, 4000);
+    });
 
     // =============================================
     // DASHBOARD
@@ -393,6 +453,7 @@
           '<div class="deuda-actions">' +
             '<button class="btn btn-primary btn-sm btn-pagar" data-id="' + d.id + '" data-restante="' + restante + '">Pagar</button>' +
             (d.estado === 'activa' ? '<button class="btn btn-secondary btn-sm btn-marcar" data-id="' + d.id + '" data-total="' + d.monto_total + '">Marcar pagada</button>' : '') +
+            '<button class="btn btn-sm btn-eliminar" data-id="' + d.id + '" style="background:var(--gasto);color:white;padding:4px 8px;border:none;border-radius:6px;font-size:12px;cursor:pointer;">🗑️</button>' +
           '</div>' +
         '</div>';
       }
@@ -411,6 +472,14 @@
       for (var j = 0; j < marcarBtns.length; j++) {
         marcarBtns[j].addEventListener('click', function() {
           marcarPagada(parseInt(this.dataset.id), parseFloat(this.dataset.total));
+        });
+      }
+
+      // Bind ELIMINAR buttons
+      var eliminarBtns = list.querySelectorAll('.btn-eliminar');
+      for (var j = 0; j < eliminarBtns.length; j++) {
+        eliminarBtns[j].addEventListener('click', function() {
+          eliminarDeuda(parseInt(this.dataset.id));
         });
       }
 
@@ -520,13 +589,26 @@
       }
     }
 
+    async function eliminarDeuda(deudaId) {
+      if (!confirm('¿Eliminar esta deuda definitivamente?')) return;
+      try {
+        await supabase.from('pagos_deuda').delete().eq('deuda_id', deudaId);
+        await supabase.from('deudas').delete().eq('id', deudaId);
+        toast('Deuda eliminada', 'success');
+        loadDeudas();
+        loadDashboard();
+      } catch (e) {
+        toast('Error de conexión', 'error');
+      }
+    }
+
     // =============================================
     // TOOLS
     // =============================================
     function handleTool(tool) {
       var actions = { meta: showMeta, proyectar: function() { showModal('modal-proyectar'); },
         simular: function() { showModal('modal-simular'); }, salida: showSalida,
-        exportar: exportarCSV, presupuesto: showPresupuesto };
+        exportar: exportarCSV, presupuesto: showPresupuesto, resumen: showResumen };
       if (actions[tool]) actions[tool]();
     }
 
@@ -677,6 +759,91 @@
       a.click();
       URL.revokeObjectURL(url);
       toast('CSV descargado', 'success');
+    }
+
+    async function showResumen() {
+      var today = new Date().toISOString().split('T')[0];
+      var monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+
+      try {
+        var r = await Promise.all([
+          supabase.from('ingresos').select('monto').eq('user_id', deviceId).gte('fecha', monthStart).lte('fecha', today),
+          supabase.from('gastos').select('monto').eq('user_id', deviceId).gte('fecha', monthStart).lte('fecha', today),
+          supabase.from('gasolina').select('costo').eq('user_id', deviceId).gte('fecha', monthStart).lte('fecha', today),
+          supabase.from('deudas').select('*').eq('user_id', deviceId).eq('estado', 'activa')
+        ]);
+
+        var iMonto = (r[0].data || []).reduce(function(s, x) { return s + x.monto; }, 0);
+        var gMonto = (r[1].data || []).reduce(function(s, x) { return s + x.monto; }, 0);
+        var gasMonto = (r[2].data || []).reduce(function(s, x) { return s + x.costo; }, 0);
+        var neto = iMonto - gMonto - gasMonto;
+        var deudas = r[3].data || [];
+        var totalDeuda = deudas.reduce(function(s, d) { return s + (d.monto_total - d.monto_pagado); }, 0);
+        var totalDeudaOrig = deudas.reduce(function(s, d) { return s + d.monto_total; }, 0);
+        var pctLibre = totalDeudaOrig > 0 ? ((1 - totalDeuda / totalDeudaOrig) * 100).toFixed(0) : 100;
+
+        var diasMes = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
+        var diasTranscurridos = new Date().getDate();
+        var diarioPromedio = diasTranscurridos > 0 ? ((iMonto - gMonto - gasMonto) / diasTranscurridos) : 0;
+        var proyeccionMensual = diarioPromedio * diasMes;
+
+        var html =
+          '<div style="padding:8px 0;">' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
+              '<div style="background:var(--bg-input);padding:12px;border-radius:10px;text-align:center;">' +
+                '<div style="font-size:11px;color:var(--text-dim);">🟢 Ingresos</div>' +
+                '<div style="font-size:20px;font-weight:700;color:var(--ingreso);margin-top:4px;">S/ ' + iMonto.toFixed(0) + '</div>' +
+              '</div>' +
+              '<div style="background:var(--bg-input);padding:12px;border-radius:10px;text-align:center;">' +
+                '<div style="font-size:11px;color:var(--text-dim);">🔴 Gastos</div>' +
+                '<div style="font-size:20px;font-weight:700;color:var(--gasto);margin-top:4px;">S/ ' + (gMonto + gasMonto).toFixed(0) + '</div>' +
+              '</div>' +
+            '</div>' +
+
+            '<div style="background:var(--bg-input);padding:14px;border-radius:10px;text-align:center;margin-top:10px;">' +
+              '<div style="font-size:12px;color:var(--text-dim);">📊 Ganancia Neta del Mes</div>' +
+              '<div style="font-size:28px;font-weight:700;margin-top:4px;color:' + (neto >= 0 ? 'var(--ingreso)' : 'var(--gasto)') + ';">S/ ' + neto.toFixed(2) + '</div>' +
+            '</div>' +
+
+            '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:10px;">' +
+              '<div style="background:var(--bg-input);padding:10px;border-radius:8px;text-align:center;">' +
+                '<div style="font-size:10px;color:var(--text-dim);">📈 Promedio/día</div>' +
+                '<div style="font-size:16px;font-weight:600;margin-top:2px;">S/ ' + diarioPromedio.toFixed(2) + '</div>' +
+              '</div>' +
+              '<div style="background:var(--bg-input);padding:10px;border-radius:8px;text-align:center;">' +
+                '<div style="font-size:10px;color:var(--text-dim);">📅 Proy. mensual</div>' +
+                '<div style="font-size:16px;font-weight:600;color:' + (proyeccionMensual >= 0 ? 'var(--ingreso)' : 'var(--gasto)') + ';margin-top:2px;">S/ ' + proyeccionMensual.toFixed(0) + '</div>' +
+              '</div>' +
+              '<div style="background:var(--bg-input);padding:10px;border-radius:8px;text-align:center;">' +
+                '<div style="font-size:10px;color:var(--text-dim);">🎯 Deuda pagada</div>' +
+                '<div style="font-size:16px;font-weight:600;color:var(--deuda);margin-top:2px;">' + pctLibre + '%</div>' +
+              '</div>' +
+            '</div>' +
+
+            '<div style="margin-top:12px;padding:10px;background:var(--bg-input);border-radius:8px;">' +
+              '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;">' +
+                '<span style="color:var(--text-dim);">💰 Deuda total activa</span>' +
+                '<span style="font-weight:600;color:var(--deuda);">S/ ' + totalDeuda.toFixed(0) + '</span>' +
+              '</div>' +
+              '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;">' +
+                '<span style="color:var(--text-dim);">📆 Días del mes</span>' +
+                '<span>' + diasTranscurridos + '/' + diasMes + '</span>' +
+              '</div>' +
+              deudas.slice(0, 3).map(function(d) {
+                var rest = d.monto_total - d.monto_pagado;
+                return '<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-top:1px solid rgba(255,255,255,0.05);">' +
+                  '<span>' + esc(d.nombre) + '</span>' +
+                  '<span style="color:var(--deuda);">S/ ' + rest.toFixed(0) + '</span>' +
+                '</div>';
+              }).join('') +
+            '</div>' +
+          '</div>';
+
+        document.getElementById('resumen-contenido').innerHTML = html;
+        showModal('modal-resumen');
+      } catch (e) {
+        toast('Error de conexión', 'error');
+      }
     }
 
     async function showPresupuesto() {

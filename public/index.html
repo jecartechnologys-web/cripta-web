@@ -80,7 +80,16 @@
     <!-- Registrar Tab -->
     <div id="tab-registrar" class="tab-content">
       <div class="card">
-        <h3>Registrar movimiento</h3>
+        <h3>⚡ Modo Rápido</h3>
+        <form id="form-rapido" style="display:flex;gap:8px;">
+          <input type="text" id="input-rapido" placeholder='Ej: "gaste 20 en gasolina" o "ingreso 50 delivery"' style="flex:1;min-width:0;" autocomplete="off">
+          <button type="submit" class="btn btn-primary" id="btn-rapido" style="white-space:nowrap;">→</button>
+        </form>
+        <div id="rapido-preview" style="font-size:13px;color:var(--text-dim);margin-top:4px;"></div>
+      </div>
+
+      <div class="card">
+        <h3>📝 Registrar movimiento</h3>
 
         <div class="type-selector">
           <button class="type-btn active" data-type="ingreso">💰 Ingreso</button>
@@ -193,6 +202,10 @@
             <span class="tool-icon">📋</span>
             <span>Presupuesto</span>
           </button>
+          <button class="tool-btn" data-tool="resumen">
+            <span class="tool-icon">📊</span>
+            <span>Resumen</span>
+          </button>
         </div>
       </div>
 
@@ -275,6 +288,15 @@
           <h3>🚀 Plan de Salida del Hueco</h3>
           <div id="salida-resultado"></div>
           <button class="btn btn-primary btn-block" id="btn-cerrar-salida">Cerrar</button>
+        </div>
+      </div>
+
+      <!-- Modal Resumen -->
+      <div id="modal-resumen" class="modal" style="display:none;">
+        <div class="modal-content">
+          <h3>📊 Resumen Financiero</h3>
+          <div id="resumen-contenido" style="padding:8px 0;"></div>
+          <button class="btn btn-primary btn-block" id="btn-cerrar-resumen">Cerrar</button>
         </div>
       </div>
 
