@@ -53,25 +53,25 @@
       </div>
 
       <div class="stats-grid">
-        <div class="stat-card">
+        <div class="stat-card" data-stat="ingresos">
           <div class="stat-icon">💰</div>
           <div class="stat-value" id="stat-ingresos-mes">0</div>
           <div class="stat-label">Ingresos mes</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" data-stat="gastos">
           <div class="stat-icon">🛒</div>
           <div class="stat-value" id="stat-gastos-mes">0</div>
           <div class="stat-label">Gastos mes</div>
         </div>
-        <div class="stat-card">
-          <div class="stat-icon">⛽</div>
-          <div class="stat-value" id="stat-km-l">0</div>
-          <div class="stat-label">km/L</div>
+        <div class="stat-card" data-stat="inversiones">
+          <div class="stat-icon">🌱</div>
+          <div class="stat-value" id="stat-inversiones-mes">0</div>
+          <div class="stat-label">Inversiones mes</div>
         </div>
-        <div class="stat-card">
-          <div class="stat-icon">🎯</div>
-          <div class="stat-value" id="stat-deudas-rest">0</div>
-          <div class="stat-label">Deudas</div>
+        <div class="stat-card" data-stat="pasivos">
+          <div class="stat-icon">🌀</div>
+          <div class="stat-value" id="stat-pasivos-rest">0</div>
+          <div class="stat-label">Pasivos</div>
         </div>
       </div>
 
@@ -102,6 +102,7 @@
         <div class="type-selector">
           <button class="type-btn active" data-type="ingreso">💰 Ingreso</button>
           <button class="type-btn" data-type="gasto">🛒 Gasto</button>
+          <button class="type-btn" data-type="inversion">🌱 Inversión</button>
           <button class="type-btn" data-type="gasolina">⛽ Gasolina</button>
         </div>
         <form id="form-movimiento">
@@ -119,7 +120,7 @@
           </div>
           <div class="form-group">
             <label>Descripción</label>
-            <input type="text" id="input-descripcion" placeholder="Ej: Entrega Miraflores" maxlength="200">
+            <input type="text" id="input-descripcion" placeholder="Ej: Plan celular, Comida semanal" maxlength="200">
           </div>
           <div class="form-group">
             <label>Categoría</label>
@@ -129,6 +130,7 @@
               <option value="comida">Comida</option>
               <option value="transporte">Transporte</option>
               <option value="salud">Salud</option>
+              <option value="inversion">🌱 Inversión Fija</option>
               <option value="otro">Otro</option>
             </select>
           </div>
@@ -137,38 +139,38 @@
       </div>
     </div>
 
-    <!-- Deudas Tab -->
-    <div id="tab-deudas" class="tab-content">
+    <!-- Pasivos Tab (antes Deudas) -->
+    <div id="tab-pasivos" class="tab-content">
       <div class="card">
-        <h3>🎯 Mis Deudas</h3>
-        <div id="deudas-list" class="list"></div>
-        <button id="btn-nueva-deuda" class="btn btn-secondary btn-block" style="margin-top:12px;">+ Nueva Deuda</button>
+        <h3>🌀 Mis Pasivos</h3>
+        <div id="pasivos-list" class="list"></div>
+        <button id="btn-nuevo-pasivo" class="btn btn-secondary btn-block" style="margin-top:12px;">+ Nuevo Pasivo</button>
       </div>
 
-      <!-- Modal Nueva Deuda -->
-      <div id="modal-deuda" class="modal" style="display:none;">
+      <!-- Modal Nuevo Pasivo -->
+      <div id="modal-pasivo" class="modal" style="display:none;">
         <div class="modal-content">
-          <h3>Agregar Deuda</h3>
-          <form id="form-deuda">
+          <h3>Agregar Pasivo</h3>
+          <form id="form-pasivo">
             <div class="form-group">
               <label>Nombre</label>
-              <input type="text" id="deuda-nombre" placeholder="Ej: Préstamo Juan" required maxlength="100">
+              <input type="text" id="pasivo-nombre" placeholder="Ej: Préstamo Juan" required maxlength="100">
             </div>
             <div class="form-group">
               <label>Monto total (S/)</label>
-              <input type="number" id="deuda-monto" step="0.01" placeholder="0.00" required min="0.01">
+              <input type="number" id="pasivo-monto" step="0.01" placeholder="0.00" required min="0.01">
             </div>
             <div class="form-group">
               <label>Interés mensual (%)</label>
-              <input type="number" id="deuda-interes" step="0.1" value="0" min="0" max="100">
+              <input type="number" id="pasivo-interes" step="0.1" value="0" min="0" max="100">
             </div>
             <div class="form-group">
               <label>Fecha límite</label>
-              <input type="date" id="deuda-fecha">
+              <input type="date" id="pasivo-fecha">
             </div>
             <div class="form-actions">
-              <button type="button" class="btn btn-secondary" id="btn-cancelar-deuda">Cancelar</button>
-              <button type="submit" class="btn btn-primary" id="btn-guardar-deuda">Guardar</button>
+              <button type="button" class="btn btn-secondary" id="btn-cancelar-pasivo">Cancelar</button>
+              <button type="submit" class="btn btn-primary" id="btn-guardar-pasivo">Guardar</button>
             </div>
           </form>
         </div>
@@ -177,6 +179,19 @@
       <div class="card" style="margin-top:8px;">
         <h3>🗓️ Próximos Pagos</h3>
         <div id="proximos-list" class="list"></div>
+      </div>
+    </div>
+
+    <!-- Inversiones Tab -->
+    <div id="tab-inversiones" class="tab-content">
+      <div class="card">
+        <h3>🌱 Mis Inversiones Fijas</h3>
+        <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">Gastos que son inversiones en ti: plan celular, cuota celular, comida semanal, cursos — todo lo que te impulsa.</p>
+        <div id="inversiones-list" class="list"></div>
+      </div>
+      <div class="card" style="margin-top:8px;">
+        <h3>📊 Total Invertido este mes</h3>
+        <div style="font-size:32px;font-weight:700;color:var(--green);text-align:center;padding:12px 0;" id="total-invertido-mes">S/ 0</div>
       </div>
     </div>
 
@@ -273,6 +288,7 @@
                 <option value="transporte">Transporte</option>
                 <option value="gasolina">Gasolina</option>
                 <option value="salud">Salud</option>
+                <option value="inversion">Inversión</option>
                 <option value="otro">Otro</option>
               </select>
             </div>
@@ -307,10 +323,10 @@
         </div>
       </div>
 
-      <!-- Modal Pago Deuda -->
+      <!-- Modal Pago Pasivo -->
       <div id="modal-pago" class="modal" style="display:none;">
         <div class="modal-content">
-          <h3>💳 Pagar Deuda</h3>
+          <h3>💳 Pagar Pasivo</h3>
           <p id="pago-info" style="color:var(--text-dim);margin-bottom:16px;"></p>
           <div class="form-group">
             <label>Monto a pagar (S/)</label>
@@ -322,13 +338,23 @@
           </div>
         </div>
       </div>
+
+      <!-- Modal Detalle Pasivo -->
+      <div id="modal-detalle-pasivo" class="modal" style="display:none;">
+        <div class="modal-content">
+          <h3 id="detalle-titulo">🌀 Detalle del Pasivo</h3>
+          <div id="detalle-contenido" style="padding:8px 0;"></div>
+          <button class="btn btn-primary btn-block" id="btn-cerrar-detalle" style="margin-top:12px;">Cerrar</button>
+        </div>
+      </div>
     </div>
 
     <!-- Bottom Tab Navigation -->
     <nav class="tabs">
       <button class="tab active" data-tab="dashboard" data-label="Dashboard">📊</button>
       <button class="tab" data-tab="registrar" data-label="Registrar">💰</button>
-      <button class="tab" data-tab="deudas" data-label="Deudas">🎯</button>
+      <button class="tab" data-tab="pasivos" data-label="Pasivos">🌀</button>
+      <button class="tab" data-tab="inversiones" data-label="Inversiones">🌱</button>
       <button class="tab" data-tab="herramientas" data-label="Tools">🔮</button>
     </nav>
 

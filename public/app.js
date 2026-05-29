@@ -1,6 +1,6 @@
 /**
  * CRIPTA — Tu Consola Financiera
- * v2.0 — Sin login, con fixes de seguridad
+ * v3.0 — Pasivos, Inversiones, Vibra Positiva
  */
 (function() {
   'use strict';
@@ -9,7 +9,7 @@
   // CONFIG
   // =============================================
   var SUPABASE_URL = 'https://myaazbpmhapnqoauqlri.supabase.co';
-  var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15YWF6YnBtaGFwbnFvYXVxbHJpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NDA2MTMsImV4cCI6MjA5NTUxNjYxM30.2MWlrQiz6ClP7mkOxrCVQFB0JiWGxq0RUDpNqJ20umg';
+  var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15YWF6YnBtaGFwbnFvYXVxbHJpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzUzNTc0ODksImV4cCI6MjA1MDkzMzQ4OX0.6V3D8tGc6-_k6v6Lq1ULS5nBvAoEOSOcKFNxFUG0umg';
   var DEVICE_ID_KEY = 'cripta_device_id';
 
   // =============================================
@@ -40,16 +40,13 @@
   // DEVICE ID — identificador anónimo local
   // =============================================
   function getDeviceId() {
-    // Check URL param override first (?device_id=xxx)
     var urlParams = new URLSearchParams(window.location.search);
     var urlId = urlParams.get('device_id');
     if (urlId && urlId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)) {
       localStorage.setItem(DEVICE_ID_KEY, urlId);
-      // Clean URL sin el parámetro
       window.history.replaceState({}, document.title, window.location.pathname);
       return urlId;
     }
-
     var id = localStorage.getItem(DEVICE_ID_KEY);
     if (!id || !id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)) {
       id = generateUUID();
@@ -67,9 +64,7 @@
         { id: id, nombre: 'device_' + id.substr(0, 8) },
         { onConflict: 'id' }
       );
-    } catch (e) {
-      // Si falla, el usuario ya existe o no necesita creación — continuar igual
-    }
+    } catch (e) {}
   }
 
   // =============================================
@@ -95,10 +90,9 @@
     var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     var deviceId = getDeviceId();
     var currentType = 'ingreso';
-    var deudaPagarId = null;
-    var deudaPagarRestante = 0;
+    var pasivoPagarId = null;
+    var pasivoPagarRestante = 0;
 
-    // Asegurar que el usuario existe en la tabla usuarios (FK constraint)
     ensureUser(supabase, deviceId);
 
     // =============================================
@@ -114,7 +108,7 @@
         tabs[i].addEventListener('click', function() { switchTab(this.dataset.tab); });
       }
 
-      // Type selector
+      // Type selector (ahora con 4 tipos: ingreso, gasto, inversion, gasolina)
       var typeBtns = document.querySelectorAll('.type-btn');
       for (var i = 0; i < typeBtns.length; i++) {
         typeBtns[i].addEventListener('click', function() { selectType(this.dataset.type); });
@@ -122,12 +116,13 @@
 
       // Forms
       document.getElementById('form-movimiento').addEventListener('submit', handleMovimiento);
-      document.getElementById('form-deuda').addEventListener('submit', handleDeuda);
+      document.getElementById('form-pasivo').addEventListener('submit', handlePasivo);
       document.getElementById('form-presupuesto').addEventListener('submit', handlePresupuesto);
 
-      // Modal buttons
-      document.getElementById('btn-nueva-deuda').addEventListener('click', function() { showModal('modal-deuda'); });
-      document.getElementById('btn-cancelar-deuda').addEventListener('click', function() { hideModal('modal-deuda'); });
+      // Modal buttons — Pasivos
+      document.getElementById('btn-nuevo-pasivo').addEventListener('click', function() { showModal('modal-pasivo'); });
+      document.getElementById('btn-cancelar-pasivo').addEventListener('click', function() { hideModal('modal-pasivo'); });
+      document.getElementById('btn-cerrar-detalle').addEventListener('click', function() { hideModal('modal-detalle-pasivo'); });
       document.getElementById('btn-cancelar-proyectar').addEventListener('click', function() { hideModal('modal-proyectar'); });
       document.getElementById('btn-cancelar-simular').addEventListener('click', function() { hideModal('modal-simular'); });
       document.getElementById('btn-cancelar-presupuesto').addEventListener('click', function() { hideModal('modal-presupuesto'); });
@@ -147,13 +142,15 @@
       document.getElementById('btn-proyectar').addEventListener('click', handleProyectar);
       document.getElementById('btn-simular').addEventListener('click', handleSimular);
 
-      // Stat cards — click para detalle
+      // Stat cards — click para detalle contextual
       var statCards = document.querySelectorAll('.stat-card');
       for (var i = 0; i < statCards.length; i++) {
         statCards[i].addEventListener('click', function() {
-          var label = this.querySelector('.stat-label').textContent;
-          var value = this.querySelector('.stat-value').textContent;
-          toast(label + ': ' + value, 'info');
+          var stat = this.dataset.stat;
+          if (stat === 'pasivos') showMeta();
+          else if (stat === 'inversiones') { switchTab('inversiones'); }
+          else if (stat === 'ingresos') showResumen();
+          else if (stat === 'gastos') showResumen();
         });
       }
 
@@ -174,7 +171,8 @@
       document.getElementById('tab-' + tabName).classList.add('active');
 
       if (tabName === 'dashboard') loadDashboard();
-      if (tabName === 'deudas') loadDeudas();
+      if (tabName === 'pasivos') loadPasivos();
+      if (tabName === 'inversiones') loadInversiones();
     }
 
     // =============================================
@@ -212,7 +210,6 @@
     // =============================================
     async function handleMovimiento(e) {
       e.preventDefault();
-      var btn = document.getElementById('btn-movimiento');
       setLoading('btn-movimiento', true);
 
       var monto = parseFloat(document.getElementById('input-monto').value);
@@ -225,26 +222,34 @@
         return;
       }
 
-      var data = { user_id: deviceId, monto: monto, descripcion: descripcion, categoria: categoria };
-
       try {
-        var table;
-        if (currentType === 'gasolina') {
-          data = { user_id: deviceId, costo: monto, descripcion: descripcion, litros: parseFloat(document.getElementById('input-litros').value) || 0, km_recorridos: parseFloat(document.getElementById('input-km').value) || 0 };
-          table = 'gasolina';
+        if (currentType === 'inversion') {
+          // Inversión fija mensual — se guarda en gastos con categoria=inversion
+          var { error } = await supabase.from('gastos').insert({
+            user_id: deviceId, monto: monto, descripcion: descripcion, categoria: 'inversion'
+          });
+          if (error) { toast('Error: ' + error.message, 'error'); return; }
+          toast('🌱 Inversión registrada: S/ ' + monto.toFixed(2), 'success');
+        } else if (currentType === 'gasolina') {
+          var data = {
+            user_id: deviceId, costo: monto, descripcion: descripcion,
+            litros: parseFloat(document.getElementById('input-litros').value) || 0,
+            km_recorridos: parseFloat(document.getElementById('input-km').value) || 0
+          };
+          var { error } = await supabase.from('gasolina').insert(data);
+          if (error) { toast('Error: ' + error.message, 'error'); return; }
+          actualizarPresupuesto('gasolina', monto);
+          toast('⛽ Gasolina registrada: S/ ' + monto.toFixed(2), 'success');
         } else {
-          table = currentType === 'ingreso' ? 'ingresos' : 'gastos';
+          var table = currentType === 'ingreso' ? 'ingresos' : 'gastos';
+          var { error } = await supabase.from(table).insert({
+            user_id: deviceId, monto: monto, descripcion: descripcion, categoria: categoria
+          });
+          if (error) { toast('Error: ' + error.message, 'error'); return; }
+          if (currentType === 'gasto') actualizarPresupuesto(categoria, monto);
+          toast(currentType.charAt(0).toUpperCase() + currentType.slice(1) + ' registrado: S/ ' + monto.toFixed(2), 'success');
         }
 
-        var { error } = await supabase.from(table).insert(data);
-        if (error) { toast('Error: ' + error.message, 'error'); return; }
-
-        // Actualizar presupuesto vivo (solo gastos y gasolina)
-        if (currentType === 'gasto' || currentType === 'gasolina') {
-          actualizarPresupuesto(currentType === 'gasolina' ? 'gasolina' : categoria, monto);
-        }
-
-        toast(currentType.charAt(0).toUpperCase() + currentType.slice(1) + ' registrado: S/ ' + monto.toFixed(2), 'success');
         document.getElementById('form-movimiento').reset();
         selectType('ingreso');
         loadDashboard();
@@ -280,10 +285,12 @@
       if (text.includes('ingreso') || text.includes('gane') || text.includes('recib')) {
         tipo = 'ingreso';
         categoria = 'delivery';
+      } else if (text.includes('inversion') || text.includes('inversión') || text.includes('invierto') || text.includes('plan') || text.includes('cuota')) {
+        tipo = 'inversion';
+        categoria = 'inversion';
       } else if (text.includes('gasolina') || text.includes('tanque') || text.includes('bencina') || text.includes('grifo')) {
         tipo = 'gasolina';
         categoria = 'gasolina';
-        // Intentar extraer litros
         var litrosMatch = text.match(/(\d+\.?\d*)\s*litros?/);
         if (litrosMatch) litros = parseFloat(litrosMatch[1]);
       } else if (text.includes('comida') || text.includes('almuerzo') || text.includes('cena') || text.includes('desayuno')) {
@@ -295,18 +302,18 @@
       }
 
       try {
-        var data;
         if (tipo === 'gasolina') {
-          data = { user_id: deviceId, costo: monto, descripcion: descripcion, litros: litros, km_recorridos: 0 };
-          await supabase.from('gasolina').insert(data);
+          await supabase.from('gasolina').insert({ user_id: deviceId, costo: monto, descripcion: descripcion, litros: litros, km_recorridos: 0 });
           actualizarPresupuesto('gasolina', monto);
+        } else if (tipo === 'inversion') {
+          await supabase.from('gastos').insert({ user_id: deviceId, monto: monto, descripcion: descripcion, categoria: 'inversion' });
         } else {
-          data = { user_id: deviceId, monto: monto, descripcion: descripcion, categoria: categoria };
           var table = tipo === 'ingreso' ? 'ingresos' : 'gastos';
-          await supabase.from(table).insert(data);
+          await supabase.from(table).insert({ user_id: deviceId, monto: monto, descripcion: descripcion, categoria: categoria });
           if (tipo === 'gasto') actualizarPresupuesto(categoria, monto);
         }
-        preview.innerHTML = '✅ <span style="color:var(--ingreso)">' + tipo.charAt(0).toUpperCase() + tipo.slice(1) + '</span> registrado: S/ ' + monto.toFixed(2) + ' (' + categoria + ')';
+        var icono = tipo === 'inversion' ? '🌱' : (tipo === 'gasolina' ? '⛽' : (tipo === 'ingreso' ? '💰' : '🛒'));
+        preview.innerHTML = '✅ ' + icono + ' ' + tipo.charAt(0).toUpperCase() + tipo.slice(1) + ' registrado: S/ ' + monto.toFixed(2);
         preview.style.color = 'var(--success)';
         loadDashboard();
       } catch (e) {
@@ -331,12 +338,12 @@
           sumTable('ingresos', monthStart, today),
           sumTable('gastos', monthStart, today),
           getKmL(),
-          countDeudas()
+          countPasivos()
         ]);
 
         var ingresosHoy = results[0], gastosHoy = results[1], gasolinaHoy = results[2];
         var ingresosMes = results[3], gastosMes = results[4];
-        var kml = results[5], deudasCount = results[6];
+        var kml = results[5], pasivosCount = results[6];
 
         var neto = ingresosHoy - gastosHoy - gasolinaHoy;
         var netoEl = document.getElementById('neto-hoy');
@@ -349,8 +356,14 @@
 
         document.getElementById('stat-ingresos-mes').textContent = 'S/ ' + ingresosMes.toFixed(0);
         document.getElementById('stat-gastos-mes').textContent = 'S/ ' + gastosMes.toFixed(0);
-        document.getElementById('stat-km-l').textContent = kml + ' km/L';
-        document.getElementById('stat-deudas-rest').textContent = deudasCount;
+        document.getElementById('stat-pasivos-rest').textContent = pasivosCount;
+
+        // Inversiones del mes
+        var { data: invData } = await supabase.from('gastos').select('monto')
+          .eq('user_id', deviceId).eq('categoria', 'inversion')
+          .gte('fecha', monthStart).lte('fecha', today);
+        var totalInv = (invData || []).reduce(function(s, x) { return s + x.monto; }, 0);
+        document.getElementById('stat-inversiones-mes').textContent = 'S/ ' + totalInv.toFixed(0);
 
         await loadHistorial();
         drawChart7d();
@@ -416,15 +429,12 @@
           var x = 4 + i * (barW + gap) + gap/2;
           var barH = (Math.abs(d.value) / maxVal) * (h - 28);
           var y = d.value >= 0 ? baseY - barH : baseY;
-
           ctx.fillStyle = d.value >= 0 ? '#22c55e' : '#ef4444';
           ctx.fillRect(x, y, barW, Math.max(barH, 1));
-
           ctx.fillStyle = 'rgba(255,255,255,0.35)';
           ctx.font = '8px sans-serif';
           ctx.textAlign = 'center';
           ctx.fillText(d.label, x + barW/2, h - 4);
-
           if (d.value !== 0) {
             ctx.fillStyle = 'rgba(255,255,255,0.5)';
             ctx.font = 'bold 9px sans-serif';
@@ -458,33 +468,8 @@
     }
 
     // =============================================
-    // PRESUPUESTOS VIVOS — auto-sync
+    // HISTORIAL
     // =============================================
-    async function actualizarPresupuesto(categoria, monto) {
-      try {
-        var today = new Date().toISOString().split('T')[0];
-        var { data: presupuestos } = await supabase.from('presupuestos')
-          .select('*').eq('user_id', deviceId)
-          .eq('categoria', categoria)
-          .lte('fecha_inicio', today).gte('fecha_fin', today);
-
-        if (presupuestos && presupuestos.length > 0) {
-          for (var i = 0; i < presupuestos.length; i++) {
-            var nuevoGastado = (presupuestos[i].monto_gastado || 0) + monto;
-            await supabase.from('presupuestos')
-              .update({ monto_gastado: nuevoGastado })
-              .eq('id', presupuestos[i].id);
-          }
-        }
-      } catch (e) { /* silencioso */ }
-    }
-
-    async function countDeudas() {
-      var { count } = await supabase.from('deudas').select('*', { count: 'exact', head: true })
-        .eq('user_id', deviceId);
-      return count || 0;
-    }
-
     async function loadHistorial() {
       var list = document.getElementById('historial-list');
       var results = await Promise.all([
@@ -516,11 +501,12 @@
       var html = '';
       for (i = 0; i < all.length; i++) {
         var m = all[i];
-        var colorClass = m.tipo === 'ingreso' ? 'ingreso' : 'gasto';
+        var colorClass = m.tipo === 'ingreso' ? 'ingreso' : (m.categoria === 'inversion' ? 'inversion' : 'gasto');
         var sign = m.tipo === 'ingreso' ? '+' : '-';
+        var icono = m.categoria === 'inversion' ? '🌱 ' : '';
         html += '<div class="list-item clickable" data-id="' + m.id + '" data-tipo="' + m.tipo + '" data-table="' + (m.tipo === 'gasolina' ? 'gasolina' : (m.tipo === 'ingreso' ? 'ingresos' : 'gastos')) + '">' +
           '<div class="list-item-left">' +
-            '<span class="list-item-desc">' + esc(m.descripcion || m.tipo) + '</span>' +
+            '<span class="list-item-desc">' + icono + esc(m.descripcion || m.tipo) + '</span>' +
             '<span class="list-item-date">' + esc(m.fecha) + ' · ' + esc(m.categoria || '') + '</span>' +
           '</div>' +
           '<div class="list-item-right ' + colorClass + '">' +
@@ -530,12 +516,10 @@
       }
       list.innerHTML = html;
 
-      // Click handlers for historial items
       var items = list.querySelectorAll('.list-item.clickable');
       for (var k = 0; k < items.length; k++) {
         items[k].addEventListener('click', function() {
           var id = parseInt(this.dataset.id);
-          var tipo = this.dataset.tipo;
           var table = this.dataset.table;
           var desc = this.querySelector('.list-item-desc').textContent;
           if (confirm('¿Eliminar "' + desc + '"?')) {
@@ -546,46 +530,62 @@
     }
 
     // =============================================
-    // DEUDAS
+    // PASIVOS (antes Deudas)
     // =============================================
-    async function loadDeudas() {
-      var { data: deudas } = await supabase.from('deudas').select('*')
+    async function countPasivos() {
+      var { count } = await supabase.from('deudas').select('*', { count: 'exact', head: true })
+        .eq('user_id', deviceId);
+      return count || 0;
+    }
+
+    async function loadPasivos() {
+      var { data: pasivos } = await supabase.from('deudas').select('*')
         .eq('user_id', deviceId).order('created_at', { ascending: false });
 
-      var list = document.getElementById('deudas-list');
+      var list = document.getElementById('pasivos-list');
 
-      if (!deudas || deudas.length === 0) {
-        list.innerHTML = '<div class="list-empty">Sin deudas registradas 🎉</div>';
+      if (!pasivos || pasivos.length === 0) {
+        list.innerHTML = '<div class="list-empty">Sin pasivos registrados 🌟</div>';
         document.getElementById('proximos-list').innerHTML = '';
         return;
       }
 
       var html = '';
-      for (var i = 0; i < deudas.length; i++) {
-        var d = deudas[i];
+      for (var i = 0; i < pasivos.length; i++) {
+        var d = pasivos[i];
         var pct = d.monto_total > 0 ? ((d.monto_pagado / d.monto_total) * 100).toFixed(0) : 0;
         var restante = d.monto_total - d.monto_pagado;
-        html += '<div class="deuda-card">' +
+        var estadoLabel = d.estado === 'pagada' ? '✅ Liberado' : '🌀 Activo';
+        html += '<div class="pasivo-card clickable" data-id="' + d.id + '">' +
           '<div class="deuda-header">' +
             '<span class="deuda-nombre">' + esc(d.nombre) + '</span>' +
             '<span class="deuda-monto">S/ ' + restante.toFixed(2) + '</span>' +
           '</div>' +
           '<div class="deuda-progress">' +
-            '<div class="deuda-progress-fill" style="width:' + pct + '%"></div>' +
+            '<div class="deuda-progress-fill" style="width:' + pct + '%;background:' + (d.estado === 'pagada' ? 'var(--green)' : '') + '"></div>' +
           '</div>' +
           '<div class="deuda-footer">' +
-            '<span>Pagado: ' + pct + '%</span>' +
+            '<span>' + estadoLabel + ' · Pagado: ' + pct + '%</span>' +
             '<span>Total: S/ ' + d.monto_total.toFixed(2) + '</span>' +
           '</div>' +
           (d.fecha_limite ? '<div class="deuda-footer" style="margin-top:4px;"><span>Vence: ' + esc(d.fecha_limite) + '</span></div>' : '') +
           '<div class="deuda-actions">' +
             '<button class="btn btn-primary btn-sm btn-pagar" data-id="' + d.id + '" data-restante="' + restante + '">Pagar</button>' +
-            (d.estado === 'activa' ? '<button class="btn btn-secondary btn-sm btn-marcar" data-id="' + d.id + '" data-total="' + d.monto_total + '">Marcar pagada</button>' : '') +
+            (d.estado === 'activa' ? '<button class="btn btn-secondary btn-sm btn-marcar" data-id="' + d.id + '" data-total="' + d.monto_total + '">Liberar ✅</button>' : '') +
             '<button class="btn btn-sm btn-eliminar" data-id="' + d.id + '" style="background:var(--gasto);color:white;padding:4px 8px;border:none;border-radius:6px;font-size:12px;cursor:pointer;">🗑️</button>' +
           '</div>' +
         '</div>';
       }
       list.innerHTML = html;
+
+      // Click en card → detalle del pasivo
+      var cards = list.querySelectorAll('.pasivo-card');
+      for (var ci = 0; ci < cards.length; ci++) {
+        cards[ci].addEventListener('click', function(e) {
+          if (e.target.tagName === 'BUTTON') return; // no interferir con botones internos
+          mostrarDetallePasivo(parseInt(this.dataset.id));
+        });
+      }
 
       // Bind PAGAR buttons
       var pagarBtns = list.querySelectorAll('.btn-pagar');
@@ -595,11 +595,11 @@
         });
       }
 
-      // Bind MARCAR buttons
+      // Bind LIBERAR buttons
       var marcarBtns = list.querySelectorAll('.btn-marcar');
       for (var j = 0; j < marcarBtns.length; j++) {
         marcarBtns[j].addEventListener('click', function() {
-          marcarPagada(parseInt(this.dataset.id), parseFloat(this.dataset.total));
+          marcarPagado(parseInt(this.dataset.id), parseFloat(this.dataset.total));
         });
       }
 
@@ -607,12 +607,12 @@
       var eliminarBtns = list.querySelectorAll('.btn-eliminar');
       for (var j = 0; j < eliminarBtns.length; j++) {
         eliminarBtns[j].addEventListener('click', function() {
-          eliminarDeuda(parseInt(this.dataset.id));
+          eliminarPasivo(parseInt(this.dataset.id));
         });
       }
 
       // Próximos pagos
-      var proximos = deudas.filter(function(d) { return d.estado === 'activa' && d.fecha_limite; })
+      var proximos = pasivos.filter(function(d) { return d.estado === 'activa' && d.fecha_limite; })
         .sort(function(a, b) { return new Date(a.fecha_limite) - new Date(b.fecha_limite); });
       var proximosList = document.getElementById('proximos-list');
 
@@ -634,9 +634,74 @@
       }
     }
 
-    function abrirModalPago(deudaId, restante) {
-      deudaPagarId = deudaId;
-      deudaPagarRestante = restante;
+    // =============================================
+    // DETALLE DE PASIVO — progreso + historial de pagos
+    // =============================================
+    async function mostrarDetallePasivo(pasivoId) {
+      var { data: pasivo } = await supabase.from('deudas').select('*').eq('id', pasivoId).single();
+      if (!pasivo) { toast('Pasivo no encontrado', 'error'); return; }
+
+      var { data: pagos } = await supabase.from('pagos_deuda').select('*')
+        .eq('deuda_id', pasivoId).order('created_at', { ascending: false });
+
+      var restante = pasivo.monto_total - pasivo.monto_pagado;
+      var pct = pasivo.monto_total > 0 ? ((pasivo.monto_pagado / pasivo.monto_total) * 100).toFixed(1) : 0;
+      var estadoLabel = pasivo.estado === 'pagada' ? '✅ Liberado' : '🌀 En progreso';
+
+      document.getElementById('detalle-titulo').textContent = '🌀 ' + pasivo.nombre;
+
+      var pagosHtml = '';
+      if (!pagos || pagos.length === 0) {
+        pagosHtml = '<div style="color:var(--text-dim);font-size:13px;">Sin pagos registrados aún</div>';
+      } else {
+        pagosHtml = pagos.map(function(p) {
+          return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border-subtle);font-size:13px;">' +
+            '<span style="color:var(--text-dim);">' + esc(p.created_at ? p.created_at.slice(0,10) : '—') + '</span>' +
+            '<span style="color:var(--green);font-weight:600;">- S/ ' + p.monto.toFixed(2) + '</span>' +
+          '</div>';
+        }).join('');
+      }
+
+      var html =
+        '<div style="padding:8px 0;">' +
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">' +
+            '<div style="background:var(--bg-input);padding:12px;border-radius:10px;text-align:center;">' +
+              '<div style="font-size:11px;color:var(--text-dim);">Total</div>' +
+              '<div style="font-size:20px;font-weight:700;color:var(--debt);margin-top:4px;">S/ ' + pasivo.monto_total.toFixed(0) + '</div>' +
+            '</div>' +
+            '<div style="background:var(--bg-input);padding:12px;border-radius:10px;text-align:center;">' +
+              '<div style="font-size:11px;color:var(--text-dim);">Restante</div>' +
+              '<div style="font-size:20px;font-weight:700;color:var(--debt);margin-top:4px;">S/ ' + restante.toFixed(0) + '</div>' +
+            '</div>' +
+          '</div>' +
+
+          '<div style="background:var(--bg-input);padding:12px;border-radius:10px;margin-bottom:12px;">' +
+            '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;">' +
+              '<span style="color:var(--text-dim);">Progreso</span>' +
+              '<span style="font-weight:600;">' + pct + '%</span>' +
+            '</div>' +
+            '<div style="height:8px;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden;">' +
+              '<div style="height:100%;width:' + Math.min(pct, 100) + '%;background:' + (pasivo.estado === 'pagada' ? 'var(--green)' : 'var(--brand)') + ';border-radius:4px;"></div>' +
+            '</div>' +
+            '<div style="font-size:11px;color:var(--text-dim);margin-top:6px;">' + estadoLabel + '</div>' +
+          '</div>' +
+
+          '<div style="background:var(--bg-input);padding:12px;border-radius:10px;">' +
+            '<div style="font-size:12px;color:var(--text-dim);margin-bottom:8px;">📋 Historial de Pagos</div>' +
+            pagosHtml +
+          '</div>' +
+        '</div>';
+
+      document.getElementById('detalle-contenido').innerHTML = html;
+      showModal('modal-detalle-pasivo');
+    }
+
+    // =============================================
+    // PAGO DE PASIVO
+    // =============================================
+    function abrirModalPago(pasivoId, restante) {
+      pasivoPagarId = pasivoId;
+      pasivoPagarRestante = restante;
       document.getElementById('pago-info').textContent = 'Restante: S/ ' + restante.toFixed(2);
       document.getElementById('pago-monto').value = '';
       document.getElementById('pago-monto').max = restante;
@@ -646,25 +711,20 @@
 
     async function confirmarPago() {
       var monto = parseFloat(document.getElementById('pago-monto').value);
-      if (isNaN(monto) || monto <= 0 || monto > deudaPagarRestante) {
+      if (isNaN(monto) || monto <= 0 || monto > pasivoPagarRestante) {
         toast('Monto inválido', 'error');
         return;
       }
-
       setLoading('btn-confirmar-pago', true);
-
       try {
-        await supabase.from('pagos_deuda').insert({ deuda_id: deudaPagarId, monto: monto });
-
-        var { data: deuda } = await supabase.from('deudas').select('monto_pagado, monto_total').eq('id', deudaPagarId).single();
-        var nuevoPagado = (deuda.monto_pagado || 0) + monto;
-        var estado = nuevoPagado >= deuda.monto_total ? 'pagada' : 'activa';
-
-        await supabase.from('deudas').update({ monto_pagado: nuevoPagado, estado: estado }).eq('id', deudaPagarId);
-
-        toast('Pago registrado: S/ ' + monto.toFixed(2), 'success');
+        await supabase.from('pagos_deuda').insert({ deuda_id: pasivoPagarId, monto: monto });
+        var { data: pasivo } = await supabase.from('deudas').select('monto_pagado, monto_total').eq('id', pasivoPagarId).single();
+        var nuevoPagado = (pasivo.monto_pagado || 0) + monto;
+        var estado = nuevoPagado >= pasivo.monto_total ? 'pagada' : 'activa';
+        await supabase.from('deudas').update({ monto_pagado: nuevoPagado, estado: estado }).eq('id', pasivoPagarId);
+        toast('💳 Pago registrado: S/ ' + monto.toFixed(2), 'success');
         hideModal('modal-pago');
-        loadDeudas();
+        loadPasivos();
         loadDashboard();
       } catch (e) {
         toast('Error de conexión', 'error');
@@ -673,57 +733,57 @@
       }
     }
 
-    async function handleDeuda(e) {
+    // =============================================
+    // CRUD PASIVOS
+    // =============================================
+    async function handlePasivo(e) {
       e.preventDefault();
-      var nombre = document.getElementById('deuda-nombre').value.trim();
-      var monto = parseFloat(document.getElementById('deuda-monto').value);
-      var interes = parseFloat(document.getElementById('deuda-interes').value) || 0;
-      var fecha = document.getElementById('deuda-fecha').value || null;
+      var nombre = document.getElementById('pasivo-nombre').value.trim();
+      var monto = parseFloat(document.getElementById('pasivo-monto').value);
+      var interes = parseFloat(document.getElementById('pasivo-interes').value) || 0;
+      var fecha = document.getElementById('pasivo-fecha').value || null;
 
       if (!nombre || isNaN(monto) || monto <= 0 || monto > 999999) {
         toast('Completa nombre y monto válido', 'error');
         return;
       }
-
-      setLoading('btn-guardar-deuda', true);
-
+      setLoading('btn-guardar-pasivo', true);
       try {
         var { error } = await supabase.from('deudas').insert({
           user_id: deviceId, nombre: nombre, monto_total: monto,
           tasa_interes: interes, fecha_limite: fecha
         });
         if (error) { toast('Error: ' + error.message, 'error'); return; }
-
-        toast('Deuda registrada', 'success');
-        hideModal('modal-deuda');
-        document.getElementById('form-deuda').reset();
-        loadDeudas();
+        toast('🌀 Pasivo registrado', 'success');
+        hideModal('modal-pasivo');
+        document.getElementById('form-pasivo').reset();
+        loadPasivos();
       } catch (e) {
         toast('Error de conexión', 'error');
       } finally {
-        setLoading('btn-guardar-deuda', false);
+        setLoading('btn-guardar-pasivo', false);
       }
     }
 
-    async function marcarPagada(deudaId, montoTotal) {
-      if (!confirm('¿Marcar como pagada?')) return;
+    async function marcarPagado(pasivoId, montoTotal) {
+      if (!confirm('¿Marcar como liberado? 🎉')) return;
       try {
-        await supabase.from('deudas').update({ monto_pagado: montoTotal, estado: 'pagada' }).eq('id', deudaId);
-        toast('Deuda marcada como pagada', 'success');
-        loadDeudas();
+        await supabase.from('deudas').update({ monto_pagado: montoTotal, estado: 'pagada' }).eq('id', pasivoId);
+        toast('✅ Pasivo liberado!', 'success');
+        loadPasivos();
         loadDashboard();
       } catch (e) {
         toast('Error de conexión', 'error');
       }
     }
 
-    async function eliminarDeuda(deudaId) {
-      if (!confirm('¿Eliminar esta deuda definitivamente?')) return;
+    async function eliminarPasivo(pasivoId) {
+      if (!confirm('¿Eliminar este pasivo definitivamente?')) return;
       try {
-        await supabase.from('pagos_deuda').delete().eq('deuda_id', deudaId);
-        await supabase.from('deudas').delete().eq('id', deudaId);
-        toast('Deuda eliminada', 'success');
-        loadDeudas();
+        await supabase.from('pagos_deuda').delete().eq('deuda_id', pasivoId);
+        await supabase.from('deudas').delete().eq('id', pasivoId);
+        toast('Pasivo eliminado', 'success');
+        loadPasivos();
         loadDashboard();
       } catch (e) {
         toast('Error de conexión', 'error');
@@ -738,6 +798,58 @@
       } catch (e) {
         toast('Error de conexión', 'error');
       }
+    }
+
+    // =============================================
+    // INVERSIONES
+    // =============================================
+    async function loadInversiones() {
+      var monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+      var today = new Date().toISOString().split('T')[0];
+
+      var { data: inversiones } = await supabase.from('gastos').select('*')
+        .eq('user_id', deviceId).eq('categoria', 'inversion')
+        .order('fecha', { ascending: false });
+
+      var list = document.getElementById('inversiones-list');
+
+      if (!inversiones || inversiones.length === 0) {
+        list.innerHTML = '<div class="list-empty">Sin inversiones registradas 🌱<br><span style="font-size:12px;">Registra desde la pestaña Registrar → Inversión</span></div>';
+      } else {
+        var html = '';
+        for (var i = 0; i < inversiones.length; i++) {
+          var inv = inversiones[i];
+          html += '<div class="list-item clickable" data-id="' + inv.id + '" data-table="gastos">' +
+            '<div class="list-item-left">' +
+              '<span class="list-item-desc">🌱 ' + esc(inv.descripcion || 'Inversión') + '</span>' +
+              '<span class="list-item-date">' + esc(inv.fecha) + '</span>' +
+            '</div>' +
+            '<div class="list-item-right inversion">S/ ' + inv.monto.toFixed(2) + '</div>' +
+          '</div>';
+        }
+        list.innerHTML = html;
+
+        // Click para eliminar inversión
+        var items = list.querySelectorAll('.list-item.clickable');
+        for (var k = 0; k < items.length; k++) {
+          items[k].addEventListener('click', function() {
+            var id = parseInt(this.dataset.id);
+            var desc = this.querySelector('.list-item-desc').textContent;
+            if (confirm('¿Eliminar ' + desc + '?')) {
+              eliminarMovimiento('gastos', id);
+              loadInversiones();
+              loadDashboard();
+            }
+          });
+        }
+      }
+
+      // Total invertido este mes
+      var { data: invMes } = await supabase.from('gastos').select('monto')
+        .eq('user_id', deviceId).eq('categoria', 'inversion')
+        .gte('fecha', monthStart).lte('fecha', today);
+      var totalInv = (invMes || []).reduce(function(s, x) { return s + x.monto; }, 0);
+      document.getElementById('total-invertido-mes').textContent = 'S/ ' + totalInv.toFixed(2);
     }
 
     // =============================================
@@ -765,7 +877,7 @@
       var promedioDiario = Math.max((ingMes - gasMes - gasoMes) / 30, 0);
 
       if (deudas.length === 0 && promedioDiario <= 0) {
-        document.getElementById('meta-resultado').innerHTML = '<p style="text-align:center;padding:20px;">Sin deudas ni ingresos registrados 📭</p>';
+        document.getElementById('meta-resultado').innerHTML = '<p style="text-align:center;padding:20px;">Sin pasivos ni ingresos registrados 📭</p>';
         showModal('modal-meta');
         return;
       }
@@ -785,13 +897,12 @@
         deudasDetalle.push({ nombre: d.nombre, restante: restante, tasa: d.tasa_interes || 0, fecha: d.fecha_limite });
       }
 
-      // Días restantes ponderados por fecha límite
       var diasPorDeuda = deudasDetalle.map(function(d) {
         if (d.fecha) {
           var diff = Math.ceil((new Date(d.fecha) - hoy) / 86400000);
           return diff > 0 ? diff : 1;
         }
-        return 90; // default 90 days if no date
+        return 90;
       });
       var diasRestantes = Math.min.apply(null, diasPorDeuda);
       if (diasRestantes === Infinity || diasRestantes <= 0) diasRestantes = 30;
@@ -804,18 +915,16 @@
 
       var html =
         '<div style="padding:12px 0;">' +
-          // Total deuda
           '<div style="text-align:center;padding:12px 0;">' +
-            '<div style="font-size:12px;color:var(--text-dim);">💰 Deuda total</div>' +
+            '<div style="font-size:12px;color:var(--text-dim);">🌀 Total pasivos</div>' +
             '<div style="font-size:32px;font-weight:700;color:var(--deuda);">S/ ' + totalDeuda.toFixed(0) + '</div>' +
           '</div>' +
 
-          // Meta diaria + factibilidad
           '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">' +
             '<div style="background:var(--bg-input);padding:12px;border-radius:10px;text-align:center;">' +
               '<div style="font-size:10px;color:var(--text-dim);">🎯 Meta diaria</div>' +
               '<div style="font-size:22px;font-weight:700;color:var(--ingreso);margin-top:2px;">S/ ' + metaDiaria.toFixed(2) + '</div>' +
-              '<div style="font-size:10px;color:var(--text-dim);margin-top:4px;">para pagar en ' + diasRestantes + ' días</div>' +
+              '<div style="font-size:10px;color:var(--text-dim);margin-top:4px;">para liberar en ' + diasRestantes + ' días</div>' +
             '</div>' +
             '<div style="background:var(--bg-input);padding:12px;border-radius:10px;text-align:center;">' +
               '<div style="font-size:10px;color:var(--text-dim);">📊 Promedio diario</div>' +
@@ -824,10 +933,9 @@
             '</div>' +
           '</div>' +
 
-          // Barra de progreso (% de ingreso necesario)
           '<div style="margin-top:12px;padding:10px;background:var(--bg-input);border-radius:10px;">' +
             '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;">' +
-              '<span style="color:var(--text-dim);">% de tu ingreso para deudas</span>' +
+              '<span style="color:var(--text-dim);">% de tu ingreso para pasivos</span>' +
               '<span style="font-weight:600;">' + porcentajeIngreso.toFixed(0) + '%</span>' +
             '</div>' +
             '<div style="height:8px;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden;">' +
@@ -835,17 +943,15 @@
             '</div>' +
             '<div style="font-size:11px;color:var(--text-dim);margin-top:6px;">' +
               (factible
-                ? '💡 Si hoy ganas S/ ' + promedioDiario.toFixed(0) + ', destina S/ ' + sugerido.toFixed(0) + ' a deudas y guarda S/ ' + (promedioDiario - sugerido).toFixed(0)
-                : '💡 Necesitas aumentar tu ingreso diario en S/ ' + (metaDiaria - promedioDiario).toFixed(2) + ' para cumplir la meta') +
+                ? '💡 Si hoy ganas S/ ' + promedioDiario.toFixed(0) + ', destina S/ ' + sugerido.toFixed(0) + ' a pasivos'
+                : '💡 Necesitas aumentar tu ingreso diario en S/ ' + (metaDiaria - promedioDiario).toFixed(2)) +
             '</div>' +
           '</div>' +
 
-          // Ranking de deudas por interés
           (deudasDetalle.length > 0 ?
             '<div style="margin-top:12px;">' +
               '<div style="font-size:12px;color:var(--text-dim);margin-bottom:6px;">📋 Prioridad (mayor interés primero):</div>' +
               deudasDetalle.map(function(d, i) {
-                var pct = d.restante > 0 && totalDeuda > 0 ? ((d.restante / totalDeuda) * 100).toFixed(0) : 0;
                 return '<div style="display:flex;justify-content:space-between;padding:6px 8px;background:var(--bg-input);border-radius:6px;margin-bottom:4px;font-size:12px;">' +
                   '<span>' + (i+1) + '. ' + esc(d.nombre) + '</span>' +
                   '<span style="color:var(--deuda);font-weight:600;">S/ ' + d.restante.toFixed(0) + (d.tasa > 0 ? ' (' + d.tasa + '%)' : '') + '</span>' +
@@ -853,10 +959,9 @@
               }).join('') +
             '</div>' : '') +
 
-          // Proyección a 30 días
           (ahorroMensual > 0 ?
             '<div style="margin-top:10px;padding:10px;background:var(--bg-input);border-radius:8px;font-size:12px;text-align:center;color:var(--ingreso);">' +
-              '🚀 Al paso actual, en 30 días tendrías S/ ' + ahorroMensual.toFixed(0) + ' libre después de pagar todo' +
+              '🚀 Al paso actual, en 30 días tendrías S/ ' + ahorroMensual.toFixed(0) + ' libre' +
             '</div>' : '') +
         '</div>';
 
@@ -868,11 +973,9 @@
       var dias = parseInt(document.getElementById('proyectar-dias').value) || 7;
       var today = new Date().toISOString().split('T')[0];
       var monthAgo = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
-
       var results = await Promise.all([sumTable('ingresos', monthAgo, today), sumTable('gastos', monthAgo, today), sumGasolina(monthAgo, today)]);
       var promedioDiario = (results[0] - results[1] - results[2]) / 30;
       var proyeccion = promedioDiario * dias;
-
       document.getElementById('proyectar-resultado').innerHTML =
         '<div style="text-align:center;padding:16px 0;">' +
           '<div style="color:var(--text-dim);font-size:14px;">Promedio diario (30 días)</div>' +
@@ -885,15 +988,12 @@
     async function handleSimular() {
       var ingresoExtra = parseFloat(document.getElementById('simular-ingreso').value) || 0;
       var gastoExtra = parseFloat(document.getElementById('simular-gasto').value) || 0;
-
       var today = new Date().toISOString().split('T')[0];
       var monthAgo = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
-
       var results = await Promise.all([sumTable('ingresos', monthAgo, today), sumTable('gastos', monthAgo, today), sumGasolina(monthAgo, today)]);
       var actual = results[0] - results[1] - results[2];
       var simulado = actual + ingresoExtra - gastoExtra;
       var diff = simulado - actual;
-
       document.getElementById('simular-resultado').innerHTML =
         '<div style="text-align:center;padding:16px 0;">' +
           '<div style="color:var(--text-dim);font-size:14px;">Situación actual (30 días)</div>' +
@@ -907,38 +1007,34 @@
     }
 
     async function showSalida() {
-      var { data: deudas } = await supabase.from('deudas').select('*')
+      var { data: pasivos } = await supabase.from('deudas').select('*')
         .eq('user_id', deviceId).eq('estado', 'activa');
-
-      if (!deudas || deudas.length === 0) {
-        document.getElementById('salida-resultado').innerHTML = '<p style="text-align:center;">¡No tienes deudas! 🎉</p>';
+      if (!pasivos || pasivos.length === 0) {
+        document.getElementById('salida-resultado').innerHTML = '<p style="text-align:center;">¡Sin pasivos activos! 🎉</p>';
         showModal('modal-salida');
         return;
       }
-
-      var totalDeuda = 0;
+      var totalPasivo = 0;
       var pagos = [];
-      for (var i = 0; i < deudas.length; i++) {
-        var restante = deudas[i].monto_total - deudas[i].monto_pagado;
-        totalDeuda += restante;
-        pagos.push({ nombre: deudas[i].nombre, restante: restante, tasa: deudas[i].tasa_interes, fecha: deudas[i].fecha_limite });
+      for (var i = 0; i < pasivos.length; i++) {
+        var restante = pasivos[i].monto_total - pasivos[i].monto_pagado;
+        totalPasivo += restante;
+        pagos.push({ nombre: pasivos[i].nombre, restante: restante, tasa: pasivos[i].tasa_interes, fecha: pasivos[i].fecha_limite });
       }
       pagos.sort(function(a, b) { return b.tasa - a.tasa; });
-
       var plan = pagos.map(function(p, i) {
         return (i + 1) + '. ' + esc(p.nombre) + ': S/ ' + p.restante.toFixed(2) +
           (p.tasa > 0 ? ' (' + p.tasa + '% interés)' : '') +
           (p.fecha ? ' → vence ' + esc(p.fecha) : '');
       }).join('\n');
-
       document.getElementById('salida-resultado').innerHTML =
         '<div style="padding:16px 0;">' +
           '<p style="color:var(--text-dim);">Tu plan de salida:</p>' +
-          '<div style="font-size:28px;font-weight:700;color:var(--deuda);text-align:center;margin:12px 0;">S/ ' + totalDeuda.toFixed(2) + '</div>' +
+          '<div style="font-size:28px;font-weight:700;color:var(--deuda);text-align:center;margin:12px 0;">S/ ' + totalPasivo.toFixed(2) + '</div>' +
           '<p style="color:var(--text-dim);margin-bottom:8px;">Prioridad por tasa de interés:</p>' +
           '<pre style="font-family:monospace;font-size:14px;line-height:1.8;white-space:pre-wrap;">' + plan + '</pre>' +
           '<div style="margin-top:16px;padding:12px;background:var(--bg-input);border-radius:8px;font-size:13px;color:var(--text-dim);">' +
-            '💡 Paga primero la deuda con mayor interés.' +
+            '💡 Libera primero el pasivo con mayor interés.' +
           '</div>' +
         '</div>';
       showModal('modal-salida');
@@ -950,7 +1046,6 @@
         supabase.from('gastos').select('*').eq('user_id', deviceId).order('fecha', { ascending: false }),
         supabase.from('gasolina').select('*').eq('user_id', deviceId).order('fecha', { ascending: false })
       ]);
-
       var csv = 'Fecha,Tipo,Descripcion,Categoria,Monto\n';
       var i, r;
       for (i = 0; i < (results[0].data || []).length; i++) {
@@ -965,7 +1060,6 @@
         r = results[2].data[i];
         csv += r.fecha + ',Gasolina,"' + (r.descripcion || '').replace(/"/g, '""') + '",gasolina,' + r.costo + '\n';
       }
-
       var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       var url = URL.createObjectURL(blob);
       var a = document.createElement('a');
@@ -979,7 +1073,6 @@
     async function showResumen() {
       var today = new Date().toISOString().split('T')[0];
       var monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
-
       try {
         var r = await Promise.all([
           supabase.from('ingresos').select('monto').eq('user_id', deviceId).gte('fecha', monthStart).lte('fecha', today),
@@ -987,15 +1080,20 @@
           supabase.from('gasolina').select('costo').eq('user_id', deviceId).gte('fecha', monthStart).lte('fecha', today),
           supabase.from('deudas').select('*').eq('user_id', deviceId)
         ]);
-
         var iMonto = (r[0].data || []).reduce(function(s, x) { return s + x.monto; }, 0);
         var gMonto = (r[1].data || []).reduce(function(s, x) { return s + x.monto; }, 0);
         var gasMonto = (r[2].data || []).reduce(function(s, x) { return s + x.costo; }, 0);
         var neto = iMonto - gMonto - gasMonto;
-        var deudas = r[3].data || [];
-        var totalDeuda = deudas.reduce(function(s, d) { return s + (d.monto_total - d.monto_pagado); }, 0);
-        var totalDeudaOrig = deudas.reduce(function(s, d) { return s + d.monto_total; }, 0);
-        var pctLibre = totalDeudaOrig > 0 ? ((1 - totalDeuda / totalDeudaOrig) * 100).toFixed(0) : 100;
+        var pasivos = r[3].data || [];
+        var totalPasivo = pasivos.reduce(function(s, d) { return s + (d.monto_total - d.monto_pagado); }, 0);
+        var totalPasivoOrig = pasivos.reduce(function(s, d) { return s + d.monto_total; }, 0);
+        var pctLibre = totalPasivoOrig > 0 ? ((1 - totalPasivo / totalPasivoOrig) * 100).toFixed(0) : 100;
+
+        // Inversiones este mes
+        var { data: invData } = await supabase.from('gastos').select('monto')
+          .eq('user_id', deviceId).eq('categoria', 'inversion')
+          .gte('fecha', monthStart).lte('fecha', today);
+        var totalInv = (invData || []).reduce(function(s, x) { return s + x.monto; }, 0);
 
         var diasMes = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
         var diasTranscurridos = new Date().getDate();
@@ -1030,21 +1128,25 @@
                 '<div style="font-size:16px;font-weight:600;color:' + (proyeccionMensual >= 0 ? 'var(--ingreso)' : 'var(--gasto)') + ';margin-top:2px;">S/ ' + proyeccionMensual.toFixed(0) + '</div>' +
               '</div>' +
               '<div style="background:var(--bg-input);padding:10px;border-radius:8px;text-align:center;">' +
-                '<div style="font-size:10px;color:var(--text-dim);">🎯 Deuda pagada</div>' +
-                '<div style="font-size:16px;font-weight:600;color:var(--deuda);margin-top:2px;">' + pctLibre + '%</div>' +
+                '<div style="font-size:10px;color:var(--text-dim);">🌱 Inversiones</div>' +
+                '<div style="font-size:16px;font-weight:600;color:var(--green);margin-top:2px;">S/ ' + totalInv.toFixed(0) + '</div>' +
               '</div>' +
             '</div>' +
 
             '<div style="margin-top:12px;padding:10px;background:var(--bg-input);border-radius:8px;">' +
               '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;">' +
-                '<span style="color:var(--text-dim);">💰 Deuda total</span>' +
-                '<span style="font-weight:600;color:var(--deuda);">S/ ' + totalDeuda.toFixed(0) + '</span>' +
+                '<span style="color:var(--text-dim);">🌀 Total pasivos</span>' +
+                '<span style="font-weight:600;color:var(--deuda);">S/ ' + totalPasivo.toFixed(0) + '</span>' +
+              '</div>' +
+              '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;">' +
+                '<span style="color:var(--text-dim);">✅ Liberado</span>' +
+                '<span style="font-weight:600;color:var(--green);">' + pctLibre + '%</span>' +
               '</div>' +
               '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;">' +
                 '<span style="color:var(--text-dim);">📆 Días del mes</span>' +
                 '<span>' + diasTranscurridos + '/' + diasMes + '</span>' +
               '</div>' +
-              deudas.slice(0, 3).map(function(d) {
+              pasivos.slice(0, 3).map(function(d) {
                 var rest = d.monto_total - d.monto_pagado;
                 return '<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-top:1px solid rgba(255,255,255,0.05);">' +
                   '<span>' + esc(d.nombre) + '</span>' +
@@ -1066,7 +1168,6 @@
       var { data } = await supabase.from('presupuestos').select('*')
         .eq('user_id', deviceId)
         .lte('fecha_inicio', today).gte('fecha_fin', today);
-
       var container = document.getElementById('presupuestos-activos');
       if (!data || data.length === 0) {
         container.innerHTML = '<p style="color:var(--text-dim);font-size:14px;">Sin presupuestos activos esta semana</p>';
@@ -1103,19 +1204,32 @@
       var hoy = new Date();
       var fin = new Date(hoy);
       fin.setDate(fin.getDate() + 7);
-
       if (isNaN(monto) || monto <= 0) { toast('Monto inválido', 'error'); return; }
-
       var { error } = await supabase.from('presupuestos').insert({
         user_id: deviceId, categoria: categoria, monto_limite: monto,
         fecha_inicio: hoy.toISOString().split('T')[0], fecha_fin: fin.toISOString().split('T')[0]
       });
-
       if (error) { toast('Error: ' + error.message, 'error'); return; }
       toast('Presupuesto creado', 'success');
       hideModal('modal-presupuesto');
       document.getElementById('form-presupuesto').reset();
       showPresupuesto();
+    }
+
+    // =============================================
+    // PRESUPUESTOS VIVOS — auto-sync
+    // =============================================
+    async function actualizarPresupuesto(categoria, monto) {
+      try {
+        var today = new Date().toISOString().split('T')[0];
+        var { data } = await supabase.from('presupuestos').select('id, monto_gastado')
+          .eq('user_id', deviceId).eq('categoria', categoria)
+          .lte('fecha_inicio', today).gte('fecha_fin', today);
+        if (data && data.length > 0) {
+          var nuevo = (data[0].monto_gastado || 0) + monto;
+          await supabase.from('presupuestos').update({ monto_gastado: nuevo }).eq('id', data[0].id);
+        }
+      } catch (e) { /* silencioso */ }
     }
 
     // =============================================

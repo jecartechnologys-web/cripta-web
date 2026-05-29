@@ -187,6 +187,8 @@ body {
 .ingreso { color: var(--green); }
 .gasto { color: var(--red); }
 .gasolina { color: var(--amber); }
+.inversion { color: var(--green); }
+.inversion { color: var(--green); }
 
 /* ─── Stats Grid ──────────────────────────────── */
 .stats-grid {
@@ -359,15 +361,18 @@ body {
 }
 
 /* ─── Debt Cards ──────────────────────────────── */
-.deuda-card {
+.deuda-card,
+.pasivo-card {
   background: var(--bg-elevated);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
+  cursor: pointer;
   padding: 14px;
   margin-bottom: 10px;
-  transition: border-color 0.2s;
+  transition: all 0.2s;
 }
-.deuda-card:hover { border-color: var(--border); }
+.deuda-card:hover,
+.pasivo-card:hover { border-color: var(--border); }
 .deuda-header {
   display: flex; justify-content: space-between; align-items: center;
   margin-bottom: 6px;
