@@ -1,52 +1,54 @@
 -- =============================================
 -- CRIPTA WEB — Supabase Schema
+-- v2.0 — Sin login, device-based users
 -- =============================================
 
--- Tabla de usuarios (vinculada a auth de Supabase)
-CREATE TABLE usuarios (
-  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  nombre TEXT,
+-- Tabla de usuarios (device-based, sin auth)
+CREATE TABLE IF NOT EXISTS usuarios (
+  id TEXT PRIMARY KEY,
+  nombre TEXT DEFAULT '',
   meta_diaria NUMERIC DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Ingresos
-CREATE TABLE ingresos (
+CREATE TABLE IF NOT EXISTS ingresos (
   id BIGSERIAL PRIMARY KEY,
-  user_id UUID REFERENCES usuarios(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
   monto NUMERIC NOT NULL,
-  descripcion TEXT,
+  descripcion TEXT DEFAULT '',
   categoria TEXT DEFAULT 'general',
   fecha DATE DEFAULT CURRENT_DATE,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Gastos
-CREATE TABLE gastos (
+CREATE TABLE IF NOT EXISTS gastos (
   id BIGSERIAL PRIMARY KEY,
-  user_id UUID REFERENCES usuarios(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
   monto NUMERIC NOT NULL,
-  descripcion TEXT,
+  descripcion TEXT DEFAULT '',
   categoria TEXT DEFAULT 'general',
   fecha DATE DEFAULT CURRENT_DATE,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Gasolina
-CREATE TABLE gasolina (
+CREATE TABLE IF NOT EXISTS gasolina (
   id BIGSERIAL PRIMARY KEY,
-  user_id UUID REFERENCES usuarios(id) ON DELETE CASCADE,
-  litros NUMERIC NOT NULL,
+  user_id TEXT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+  litros NUMERIC DEFAULT 0,
   costo NUMERIC NOT NULL,
   km_recorridos NUMERIC DEFAULT 0,
+  descripcion TEXT DEFAULT '',
   fecha DATE DEFAULT CURRENT_DATE,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Deudas
-CREATE TABLE deudas (
+CREATE TABLE IF NOT EXISTS deudas (
   id BIGSERIAL PRIMARY KEY,
-  user_id UUID REFERENCES usuarios(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
   nombre TEXT NOT NULL,
   monto_total NUMERIC NOT NULL,
   monto_pagado NUMERIC DEFAULT 0,
@@ -57,18 +59,18 @@ CREATE TABLE deudas (
 );
 
 -- Pagos de deudas
-CREATE TABLE pagos_deuda (
+CREATE TABLE IF NOT EXISTS pagos_deuda (
   id BIGSERIAL PRIMARY KEY,
-  deuda_id BIGINT REFERENCES deudas(id) ON DELETE CASCADE,
+  deuda_id BIGINT NOT NULL REFERENCES deudas(id) ON DELETE CASCADE,
   monto NUMERIC NOT NULL,
   fecha DATE DEFAULT CURRENT_DATE,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Metas diarias
-CREATE TABLE metas (
+CREATE TABLE IF NOT EXISTS metas (
   id BIGSERIAL PRIMARY KEY,
-  user_id UUID REFERENCES usuarios(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
   monto_objetivo NUMERIC NOT NULL,
   fecha DATE DEFAULT CURRENT_DATE,
   completada BOOLEAN DEFAULT FALSE,
@@ -76,9 +78,9 @@ CREATE TABLE metas (
 );
 
 -- Presupuestos semanales
-CREATE TABLE presupuestos (
+CREATE TABLE IF NOT EXISTS presupuestos (
   id BIGSERIAL PRIMARY KEY,
-  user_id UUID REFERENCES usuarios(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
   categoria TEXT NOT NULL,
   monto_limite NUMERIC NOT NULL,
   monto_gastado NUMERIC DEFAULT 0,
@@ -88,36 +90,33 @@ CREATE TABLE presupuestos (
 );
 
 -- =============================================
--- RLS (Row Level Security)
+-- Índices para performance
 -- =============================================
+CREATE INDEX IF NOT EXISTS idx_ingresos_user_fecha ON ingresos(user_id, fecha);
+CREATE INDEX IF NOT EXISTS idx_gastos_user_fecha ON gastos(user_id, fecha);
+CREATE INDEX IF NOT EXISTS idx_gasolina_user_fecha ON gasolina(user_id, fecha);
+CREATE INDEX IF NOT EXISTS idx_deudas_user_estado ON deudas(user_id, estado);
 
-ALTER TABLE usuarios ENABLE ROW LEVEL SECURITY;
-ALTER TABLE ingresos ENABLE ROW LEVEL SECURITY;
-ALTER TABLE gastos ENABLE ROW LEVEL SECURITY;
-ALTER TABLE gasolina ENABLE ROW LEVEL SECURITY;
-ALTER TABLE deudas ENABLE ROW LEVEL SECURITY;
-ALTER TABLE pagos_deuda ENABLE ROW LEVEL SECURITY;
-ALTER TABLE metas ENABLE ROW LEVEL SECURITY;
-ALTER TABLE presupuestos ENABLE ROW LEVEL SECURITY;
-
--- Políticas: cada usuario solo ve sus datos
-CREATE POLICY "usuarios_own" ON usuarios FOR ALL USING (auth.uid() = id);
-CREATE POLICY "ingresos_own" ON ingresos FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "gastos_own" ON gastos FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "gasolina_own" ON gasolina FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "deudas_own" ON deudas FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "pagos_deuda_own" ON pagos_deuda FOR ALL USING (
-  EXISTS (SELECT 1 FROM deudas WHERE deudas.id = pagos_deuda.deuda_id AND auth.uid() = deudas.user_id)
-);
-CREATE POLICY "metas_own" ON metas FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "presupuestos_own" ON presupuestos FOR ALL USING (auth.uid() = user_id);
+-- =============================================
+-- RLS (Row Level Security) — deshabilitado para
+-- device-based single-user app. Seguridad vía
+-- CSP + anon key + sanitización frontend.
+-- =============================================
+ALTER TABLE usuarios DISABLE ROW LEVEL SECURITY;
+ALTER TABLE ingresos DISABLE ROW LEVEL SECURITY;
+ALTER TABLE gastos DISABLE ROW LEVEL SECURITY;
+ALTER TABLE gasolina DISABLE ROW LEVEL SECURITY;
+ALTER TABLE deudas DISABLE ROW LEVEL SECURITY;
+ALTER TABLE pagos_deuda DISABLE ROW LEVEL SECURITY;
+ALTER TABLE metas DISABLE ROW LEVEL SECURITY;
+ALTER TABLE presupuestos DISABLE ROW LEVEL SECURITY;
 
 -- =============================================
 -- Funciones útiles
 -- =============================================
 
 -- Calcular ganancia neta del día
-CREATE OR REPLACE FUNCTION ganancia_neta(p_user_id UUID, p_fecha DATE DEFAULT CURRENT_DATE)
+CREATE OR REPLACE FUNCTION ganancia_neta(p_user_id TEXT, p_fecha DATE DEFAULT CURRENT_DATE)
 RETURNS NUMERIC AS $$
 DECLARE
   total_ingresos NUMERIC;
@@ -138,7 +137,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Rendimiento km/L
-CREATE OR REPLACE FUNCTION rendimiento_km_l(p_user_id UUID)
+CREATE OR REPLACE FUNCTION rendimiento_km_l(p_user_id TEXT)
 RETURNS NUMERIC AS $$
 DECLARE
   total_km NUMERIC;

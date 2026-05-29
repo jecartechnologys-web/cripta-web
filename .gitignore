@@ -1,3 +1,8 @@
 node_modules/
 .vercel/
 .git/
+.env
+.env.local
+*.log
+Thumbs.db
+.DS_Store

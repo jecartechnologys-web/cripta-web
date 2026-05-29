@@ -13,6 +13,16 @@
   var DEVICE_ID_KEY = 'cripta_device_id';
 
   // =============================================
+  // UUID — generador de UUID v4 para user_id
+  // =============================================
+  function generateUUID() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      var r = Math.random() * 16 | 0;
+      return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    });
+  }
+
+  // =============================================
   // SANITIZE — previene XSS
   // =============================================
   function esc(str) {
@@ -31,11 +41,25 @@
   // =============================================
   function getDeviceId() {
     var id = localStorage.getItem(DEVICE_ID_KEY);
-    if (!id) {
-      id = 'dev_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    if (!id || !id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)) {
+      id = generateUUID();
       localStorage.setItem(DEVICE_ID_KEY, id);
     }
     return id;
+  }
+
+  // =============================================
+  // ENSURE USER — upsert en tabla usuarios
+  // =============================================
+  async function ensureUser(supabase, id) {
+    try {
+      await supabase.from('usuarios').upsert(
+        { id: id, nombre: 'device_' + id.substr(0, 8) },
+        { onConflict: 'id' }
+      );
+    } catch (e) {
+      // Si falla, el usuario ya existe o no necesita creación — continuar igual
+    }
   }
 
   // =============================================
@@ -63,6 +87,9 @@
     var currentType = 'ingreso';
     var deudaPagarId = null;
     var deudaPagarRestante = 0;
+
+    // Asegurar que el usuario existe en la tabla usuarios (FK constraint)
+    ensureUser(supabase, deviceId);
 
     // =============================================
     // INIT DOM
