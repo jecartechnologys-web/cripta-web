@@ -123,6 +123,7 @@
       document.getElementById('btn-nuevo-pasivo').addEventListener('click', function() { showModal('modal-pasivo'); });
       document.getElementById('btn-cancelar-pasivo').addEventListener('click', function() { hideModal('modal-pasivo'); });
       document.getElementById('btn-cerrar-detalle').addEventListener('click', function() { hideModal('modal-detalle-pasivo'); });
+      document.getElementById('btn-cerrar-pasivos-panel').addEventListener('click', function() { hideModal('modal-pasivos-panel'); });
       document.getElementById('btn-cancelar-proyectar').addEventListener('click', function() { hideModal('modal-proyectar'); });
       document.getElementById('btn-cancelar-simular').addEventListener('click', function() { hideModal('modal-simular'); });
       document.getElementById('btn-cancelar-presupuesto').addEventListener('click', function() { hideModal('modal-presupuesto'); });
@@ -147,7 +148,7 @@
       for (var i = 0; i < statCards.length; i++) {
         statCards[i].addEventListener('click', function() {
           var stat = this.dataset.stat;
-          if (stat === 'pasivos') showMeta();
+          if (stat === 'pasivos') showPasivosPanel();
           else if (stat === 'inversiones') { switchTab('inversiones'); }
           else if (stat === 'ingresos') showResumen();
           else if (stat === 'gastos') showResumen();
@@ -694,6 +695,94 @@
 
       document.getElementById('detalle-contenido').innerHTML = html;
       showModal('modal-detalle-pasivo');
+    }
+
+    // =============================================
+    // PANEL DE PASIVOS — dashboard completo
+    // =============================================
+    async function showPasivosPanel() {
+      var { data: pasivos } = await supabase.from('deudas').select('*')
+        .eq('user_id', deviceId).order('created_at', { ascending: false });
+
+      var activos = (pasivos || []).filter(function(d) { return d.estado === 'activa'; });
+      var liberados = (pasivos || []).filter(function(d) { return d.estado === 'pagada'; });
+      var totalRestante = (pasivos || []).reduce(function(s, d) { return s + (d.monto_total - d.monto_pagado); }, 0);
+      var totalOrig = (pasivos || []).reduce(function(s, d) { return s + d.monto_total; }, 0);
+      var pctGlobal = totalOrig > 0 ? ((1 - totalRestante / totalOrig) * 100).toFixed(1) : 0;
+
+      var html =
+        '<div style="padding:4px 0;">' +
+          '<h3 style="margin-bottom:16px;">🌀 Panel de Pasivos</h3>' +
+
+          // Stats summary
+          '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;">' +
+            '<div style="background:var(--bg-input);padding:10px;border-radius:10px;text-align:center;">' +
+              '<div style="font-size:10px;color:var(--text-dim);">Totales</div>' +
+              '<div style="font-size:18px;font-weight:700;color:var(--debt);margin-top:2px;">' + (pasivos ? pasivos.length : 0) + '</div>' +
+            '</div>' +
+            '<div style="background:var(--bg-input);padding:10px;border-radius:10px;text-align:center;">' +
+              '<div style="font-size:10px;color:var(--text-dim);">Activos</div>' +
+              '<div style="font-size:18px;font-weight:700;color:var(--amber);margin-top:2px;">' + activos.length + '</div>' +
+            '</div>' +
+            '<div style="background:var(--bg-input);padding:10px;border-radius:10px;text-align:center;">' +
+              '<div style="font-size:10px;color:var(--text-dim);">Liberados</div>' +
+              '<div style="font-size:18px;font-weight:700;color:var(--green);margin-top:2px;">' + liberados.length + '</div>' +
+            '</div>' +
+          '</div>' +
+
+          // Global progress bar
+          '<div style="background:var(--bg-input);padding:12px;border-radius:10px;margin-bottom:16px;">' +
+            '<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:6px;">' +
+              '<span style="color:var(--text-dim);">🌍 Progreso global</span>' +
+              '<span style="font-weight:600;">' + pctGlobal + '% liberado</span>' +
+            '</div>' +
+            '<div style="height:10px;background:rgba(255,255,255,0.08);border-radius:5px;overflow:hidden;">' +
+              '<div style="height:100%;width:' + Math.min(pctGlobal, 100) + '%;background:linear-gradient(90deg,var(--brand),var(--green));border-radius:5px;transition:width 0.5s;"></div>' +
+            '</div>' +
+            '<div style="font-size:11px;color:var(--text-dim);margin-top:6px;">S/ ' + totalRestante.toFixed(0) + ' restante de S/ ' + totalOrig.toFixed(0) + '</div>' +
+          '</div>';
+
+      if (!pasivos || pasivos.length === 0) {
+        html += '<div class="list-empty">Sin pasivos registrados 🌟</div>';
+      } else {
+        html += '<div style="font-size:13px;color:var(--text-dim);margin-bottom:8px;">📋 Cada pasivo</div>';
+
+        for (var i = 0; i < pasivos.length; i++) {
+          var d = pasivos[i];
+          var restante = d.monto_total - d.monto_pagado;
+          var pct = d.monto_total > 0 ? ((d.monto_pagado / d.monto_total) * 100).toFixed(1) : 0;
+          var barColor = d.estado === 'pagada' ? 'var(--green)' : (pct > 50 ? 'var(--amber)' : 'var(--brand)');
+          var label = d.estado === 'pagada' ? '✅ Liberado' : '🌀 S/ ' + restante.toFixed(0) + ' pendiente';
+
+          html += '<div class="pasivo-card clickable" data-id="' + d.id + '" style="cursor:pointer;margin-bottom:8px;padding:12px;">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
+              '<span style="font-weight:600;font-size:14px;">' + esc(d.nombre) + '</span>' +
+              '<span style="font-family:var(--font-mono);font-weight:700;font-size:14px;color:' + (d.estado === 'pagada' ? 'var(--green)' : 'var(--debt)') + ';">S/ ' + restante.toFixed(2) + '</span>' +
+            '</div>' +
+            '<div style="height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;margin-bottom:4px;">' +
+              '<div style="height:100%;width:' + Math.min(pct, 100) + '%;background:' + barColor + ';border-radius:3px;"></div>' +
+            '</div>' +
+            '<div style="display:flex;justify-content:space-between;font-size:11px;">' +
+              '<span style="color:var(--text-dim);">' + label + '</span>' +
+              '<span style="color:var(--text-dim);">' + pct + '%</span>' +
+            '</div>' +
+            (d.tasa_interes > 0 ? '<div style="font-size:10px;color:var(--text-dim);margin-top:2px;">📊 ' + d.tasa_interes + '% interés</div>' : '') +
+          '</div>';
+        }
+      }
+
+      html += '</div>';
+
+      document.getElementById('pasivos-panel-contenido').innerHTML = html;
+      showModal('modal-pasivos-panel');
+
+      // Bind clicks to details
+      var cards = document.querySelectorAll('#pasivos-panel-contenido .pasivo-card');
+      for (var ci = 0; ci < cards.length; ci++) {
+        cards[ci].addEventListener('click', function() {
+          mostrarDetallePasivo(parseInt(this.dataset.id));
+        });
+      }
     }
 
     // =============================================
