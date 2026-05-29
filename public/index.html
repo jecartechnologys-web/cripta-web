@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>CRIPTA — Consola Financiera</title>
   <link rel="stylesheet" href="styles.css">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%236366f1'/%3E%3Cpath d='M7 12h10M12 7v10' stroke='white' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#06070a">
 </head>
@@ -13,10 +13,14 @@
 
   <!-- Loading -->
   <div id="loading-screen" class="screen active" style="display:flex;align-items:center;justify-content:center;min-height:100vh;">
-    <div style="text-align:center;">
-      <div style="font-size:48px;margin-bottom:12px;opacity:0.8;">🤖</div>
-      <p style="color:var(--text-dim);font-size:13px;font-weight:500;">Cargando CRIPTA…</p>
-    </div>
+      <div style="text-align:center;">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom:12px;opacity:0.8;">
+          <rect width="24" height="24" rx="6" fill="url(#load_grad)"/>
+          <path d="M7 12h10M12 7v10" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          <defs><linearGradient id="load_grad" x1="0" y1="0" x2="24" y2="24"><stop stop-color="#6366f1"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs>
+        </svg>
+        <p style="color:var(--text-dim);font-size:13px;font-weight:500;">Cargando CRIPTA…</p>
+      </div>
   </div>
 
   <!-- Main App -->
@@ -25,7 +29,13 @@
     <!-- Header -->
     <header class="header">
       <div class="header-left">
-        <span class="logo-sm">🤖</span>
+        <span class="logo-sm">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="24" height="24" rx="6" fill="url(#logo_grad)"/>
+            <path d="M7 12h10M12 7v10" stroke="white" stroke-width="2" stroke-linecap="round"/>
+            <defs><linearGradient id="logo_grad" x1="0" y1="0" x2="24" y2="24"><stop stop-color="#6366f1"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs>
+          </svg>
+        </span>
         <h2>CRIPTA</h2>
       </div>
     </header>
