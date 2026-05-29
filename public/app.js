@@ -220,8 +220,7 @@
       try {
         var table;
         if (currentType === 'gasolina') {
-          data.litros = parseFloat(document.getElementById('input-litros').value) || 0;
-          data.km_recorridos = parseFloat(document.getElementById('input-km').value) || 0;
+          data = { user_id: deviceId, costo: monto, descripcion: descripcion, litros: parseFloat(document.getElementById('input-litros').value) || 0, km_recorridos: parseFloat(document.getElementById('input-km').value) || 0 };
           table = 'gasolina';
         } else {
           table = currentType === 'ingreso' ? 'ingresos' : 'gastos';
@@ -281,12 +280,12 @@
       }
 
       try {
-        var data = { user_id: deviceId, monto: monto, descripcion: descripcion, categoria: categoria };
+        var data;
         if (tipo === 'gasolina') {
-          data.litros = litros;
-          data.costo = monto;
+          data = { user_id: deviceId, costo: monto, descripcion: descripcion, litros: litros, km_recorridos: 0 };
           await supabase.from('gasolina').insert(data);
         } else {
+          data = { user_id: deviceId, monto: monto, descripcion: descripcion, categoria: categoria };
           var table = tipo === 'ingreso' ? 'ingresos' : 'gastos';
           await supabase.from(table).insert(data);
         }
