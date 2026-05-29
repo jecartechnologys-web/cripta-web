@@ -147,6 +147,16 @@
       document.getElementById('btn-proyectar').addEventListener('click', handleProyectar);
       document.getElementById('btn-simular').addEventListener('click', handleSimular);
 
+      // Stat cards — click para detalle
+      var statCards = document.querySelectorAll('.stat-card');
+      for (var i = 0; i < statCards.length; i++) {
+        statCards[i].addEventListener('click', function() {
+          var label = this.querySelector('.stat-label').textContent;
+          var value = this.querySelector('.stat-value').textContent;
+          toast(label + ': ' + value, 'info');
+        });
+      }
+
       // Load data
       loadDashboard();
     });
@@ -508,7 +518,7 @@
         var m = all[i];
         var colorClass = m.tipo === 'ingreso' ? 'ingreso' : 'gasto';
         var sign = m.tipo === 'ingreso' ? '+' : '-';
-        html += '<div class="list-item">' +
+        html += '<div class="list-item clickable" data-id="' + m.id + '" data-tipo="' + m.tipo + '" data-table="' + (m.tipo === 'gasolina' ? 'gasolina' : (m.tipo === 'ingreso' ? 'ingresos' : 'gastos')) + '">' +
           '<div class="list-item-left">' +
             '<span class="list-item-desc">' + esc(m.descripcion || m.tipo) + '</span>' +
             '<span class="list-item-date">' + esc(m.fecha) + ' · ' + esc(m.categoria || '') + '</span>' +
@@ -519,6 +529,20 @@
         '</div>';
       }
       list.innerHTML = html;
+
+      // Click handlers for historial items
+      var items = list.querySelectorAll('.list-item.clickable');
+      for (var k = 0; k < items.length; k++) {
+        items[k].addEventListener('click', function() {
+          var id = parseInt(this.dataset.id);
+          var tipo = this.dataset.tipo;
+          var table = this.dataset.table;
+          var desc = this.querySelector('.list-item-desc').textContent;
+          if (confirm('¿Eliminar "' + desc + '"?')) {
+            eliminarMovimiento(table, id);
+          }
+        });
+      }
     }
 
     // =============================================
@@ -700,6 +724,16 @@
         await supabase.from('deudas').delete().eq('id', deudaId);
         toast('Deuda eliminada', 'success');
         loadDeudas();
+        loadDashboard();
+      } catch (e) {
+        toast('Error de conexión', 'error');
+      }
+    }
+
+    async function eliminarMovimiento(table, id) {
+      try {
+        await supabase.from(table).delete().eq('id', id);
+        toast('Movimiento eliminado', 'success');
         loadDashboard();
       } catch (e) {
         toast('Error de conexión', 'error');

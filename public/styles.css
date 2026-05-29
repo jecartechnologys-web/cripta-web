@@ -201,6 +201,7 @@ body {
   border-radius: var(--radius-md);
   padding: 14px;
   text-align: center;
+  cursor: pointer;
   transition: all 0.2s;
 }
 .stat-card:active { transform: scale(0.97); }
@@ -337,6 +338,7 @@ body {
   display: flex; justify-content: space-between; align-items: center;
   padding: 10px 0;
   border-bottom: 1px solid var(--border-subtle);
+  cursor: pointer;
 }
 .list-item:last-child { border-bottom: none; }
 .list-item-left { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
@@ -474,6 +476,7 @@ body {
 }
 .toast.success { border-color: var(--green); color: var(--green); }
 .toast.error { border-color: var(--red); color: var(--red); }
+.toast.info { border-color: var(--brand); color: var(--brand); }
 
 /* ─── Canvas Chart ────────────────────────────── */
 #chart-canvas {
