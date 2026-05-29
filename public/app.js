@@ -471,7 +471,7 @@
 
     async function countDeudas() {
       var { count } = await supabase.from('deudas').select('*', { count: 'exact', head: true })
-        .eq('user_id', deviceId).eq('estado', 'activa');
+        .eq('user_id', deviceId);
       return count || 0;
     }
 
@@ -718,7 +718,7 @@
 
     async function showMeta() {
       var results = await Promise.all([
-        supabase.from('deudas').select('*').eq('user_id', deviceId).eq('estado', 'activa'),
+        supabase.from('deudas').select('*').eq('user_id', deviceId),
         supabase.from('ingresos').select('monto').eq('user_id', deviceId).gte('fecha', new Date(Date.now() - 30*86400000).toISOString().split('T')[0]).lte('fecha', new Date().toISOString().split('T')[0]),
         supabase.from('gastos').select('monto').eq('user_id', deviceId).gte('fecha', new Date(Date.now() - 30*86400000).toISOString().split('T')[0]).lte('fecha', new Date().toISOString().split('T')[0]),
         supabase.from('gasolina').select('costo').eq('user_id', deviceId).gte('fecha', new Date(Date.now() - 30*86400000).toISOString().split('T')[0]).lte('fecha', new Date().toISOString().split('T')[0])
@@ -772,7 +772,7 @@
         '<div style="padding:12px 0;">' +
           // Total deuda
           '<div style="text-align:center;padding:12px 0;">' +
-            '<div style="font-size:12px;color:var(--text-dim);">💰 Deuda total activa</div>' +
+            '<div style="font-size:12px;color:var(--text-dim);">💰 Deuda total</div>' +
             '<div style="font-size:32px;font-weight:700;color:var(--deuda);">S/ ' + totalDeuda.toFixed(0) + '</div>' +
           '</div>' +
 
@@ -951,7 +951,7 @@
           supabase.from('ingresos').select('monto').eq('user_id', deviceId).gte('fecha', monthStart).lte('fecha', today),
           supabase.from('gastos').select('monto').eq('user_id', deviceId).gte('fecha', monthStart).lte('fecha', today),
           supabase.from('gasolina').select('costo').eq('user_id', deviceId).gte('fecha', monthStart).lte('fecha', today),
-          supabase.from('deudas').select('*').eq('user_id', deviceId).eq('estado', 'activa')
+          supabase.from('deudas').select('*').eq('user_id', deviceId)
         ]);
 
         var iMonto = (r[0].data || []).reduce(function(s, x) { return s + x.monto; }, 0);
@@ -1003,7 +1003,7 @@
 
             '<div style="margin-top:12px;padding:10px;background:var(--bg-input);border-radius:8px;">' +
               '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;">' +
-                '<span style="color:var(--text-dim);">💰 Deuda total activa</span>' +
+                '<span style="color:var(--text-dim);">💰 Deuda total</span>' +
                 '<span style="font-weight:600;color:var(--deuda);">S/ ' + totalDeuda.toFixed(0) + '</span>' +
               '</div>' +
               '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;">' +
