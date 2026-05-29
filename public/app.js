@@ -229,6 +229,11 @@
         var { error } = await supabase.from(table).insert(data);
         if (error) { toast('Error: ' + error.message, 'error'); return; }
 
+        // Actualizar presupuesto vivo (solo gastos y gasolina)
+        if (currentType === 'gasto' || currentType === 'gasolina') {
+          actualizarPresupuesto(currentType === 'gasolina' ? 'gasolina' : categoria, monto);
+        }
+
         toast(currentType.charAt(0).toUpperCase() + currentType.slice(1) + ' registrado: S/ ' + monto.toFixed(2), 'success');
         document.getElementById('form-movimiento').reset();
         selectType('ingreso');
@@ -284,10 +289,12 @@
         if (tipo === 'gasolina') {
           data = { user_id: deviceId, costo: monto, descripcion: descripcion, litros: litros, km_recorridos: 0 };
           await supabase.from('gasolina').insert(data);
+          actualizarPresupuesto('gasolina', monto);
         } else {
           data = { user_id: deviceId, monto: monto, descripcion: descripcion, categoria: categoria };
           var table = tipo === 'ingreso' ? 'ingresos' : 'gastos';
           await supabase.from(table).insert(data);
+          if (tipo === 'gasto') actualizarPresupuesto(categoria, monto);
         }
         preview.innerHTML = '✅ <span style="color:var(--ingreso)">' + tipo.charAt(0).toUpperCase() + tipo.slice(1) + '</span> registrado: S/ ' + monto.toFixed(2) + ' (' + categoria + ')';
         preview.style.color = 'var(--success)';
@@ -336,9 +343,85 @@
         document.getElementById('stat-deudas-rest').textContent = deudasCount;
 
         await loadHistorial();
+        drawChart7d();
       } catch (e) {
         console.error('[CRIPTA] Dashboard error');
       }
+    }
+
+    // =============================================
+    // CHARTS — reutilizable, retina-ready
+    // =============================================
+    async function drawChart7d() {
+      var canvas = document.getElementById('chart-canvas');
+      if (!canvas) return;
+      var days = [];
+      for (var i = 6; i >= 0; i--) {
+        var d = new Date();
+        d.setDate(d.getDate() - i);
+        days.push(d.toISOString().split('T')[0]);
+      }
+
+      try {
+        var queries = days.map(function(d) {
+          return Promise.all([
+            supabase.from('ingresos').select('monto').eq('user_id', deviceId).eq('fecha', d),
+            supabase.from('gastos').select('monto').eq('user_id', deviceId).eq('fecha', d),
+            supabase.from('gasolina').select('costo').eq('user_id', deviceId).eq('fecha', d)
+          ]);
+        });
+        var results = await Promise.all(queries);
+        var chartData = results.map(function(r, i) {
+          var ing = (r[0].data || []).reduce(function(s, x) { return s + x.monto; }, 0);
+          var gas = (r[1].data || []).reduce(function(s, x) { return s + x.monto; }, 0);
+          var gaso = (r[2].data || []).reduce(function(s, x) { return s + x.costo; }, 0);
+          return { label: days[i].slice(5), value: ing - gas - gaso };
+        });
+
+        var ctx = canvas.getContext('2d');
+        var dpr = window.devicePixelRatio || 1;
+        var rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        ctx.scale(dpr, dpr);
+        var w = rect.width, h = rect.height;
+
+        ctx.clearRect(0, 0, w, h);
+        var hasData = chartData.some(function(d) { return d.value !== 0; });
+        if (!hasData) {
+          ctx.fillStyle = 'rgba(255,255,255,0.25)';
+          ctx.font = '12px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('Sin datos — registra movimientos para ver tu tendencia', w/2, h/2);
+          return;
+        }
+
+        var maxVal = Math.max.apply(null, chartData.map(function(d) { return Math.abs(d.value); }));
+        maxVal = Math.max(maxVal, 1);
+        var barW = (w - 8) / 7 * 0.6;
+        var gap = (w - 8) / 7 * 0.4;
+        var baseY = h - 18;
+
+        chartData.forEach(function(d, i) {
+          var x = 4 + i * (barW + gap) + gap/2;
+          var barH = (Math.abs(d.value) / maxVal) * (h - 28);
+          var y = d.value >= 0 ? baseY - barH : baseY;
+
+          ctx.fillStyle = d.value >= 0 ? '#22c55e' : '#ef4444';
+          ctx.fillRect(x, y, barW, Math.max(barH, 1));
+
+          ctx.fillStyle = 'rgba(255,255,255,0.35)';
+          ctx.font = '8px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(d.label, x + barW/2, h - 4);
+
+          if (d.value !== 0) {
+            ctx.fillStyle = 'rgba(255,255,255,0.5)';
+            ctx.font = 'bold 9px sans-serif';
+            ctx.fillText((d.value > 0 ? '+' : '') + (d.value < 0 ? '' : '') + 'S/' + Math.abs(d.value).toFixed(0), x + barW/2, d.value >= 0 ? y - 4 : y + barH + 12);
+          }
+        });
+      } catch (e) { /* silencioso */ }
     }
 
     async function sumTable(table, from, to) {
@@ -362,6 +445,28 @@
       var totalKm = data.reduce(function(s, r) { return s + (r.km_recorridos || 0); }, 0);
       var totalL = data.reduce(function(s, r) { return s + (r.litros || 0); }, 0);
       return totalL > 0 ? (totalKm / totalL).toFixed(1) : '0';
+    }
+
+    // =============================================
+    // PRESUPUESTOS VIVOS — auto-sync
+    // =============================================
+    async function actualizarPresupuesto(categoria, monto) {
+      try {
+        var today = new Date().toISOString().split('T')[0];
+        var { data: presupuestos } = await supabase.from('presupuestos')
+          .select('*').eq('user_id', deviceId)
+          .eq('categoria', categoria)
+          .lte('fecha_inicio', today).gte('fecha_fin', today);
+
+        if (presupuestos && presupuestos.length > 0) {
+          for (var i = 0; i < presupuestos.length; i++) {
+            var nuevoGastado = (presupuestos[i].monto_gastado || 0) + monto;
+            await supabase.from('presupuestos')
+              .update({ monto_gastado: nuevoGastado })
+              .eq('id', presupuestos[i].id);
+          }
+        }
+      } catch (e) { /* silencioso */ }
     }
 
     async function countDeudas() {
@@ -612,39 +717,116 @@
     }
 
     async function showMeta() {
-      var { data: deudas } = await supabase.from('deudas').select('*')
-        .eq('user_id', deviceId).eq('estado', 'activa');
+      var results = await Promise.all([
+        supabase.from('deudas').select('*').eq('user_id', deviceId).eq('estado', 'activa'),
+        supabase.from('ingresos').select('monto').eq('user_id', deviceId).gte('fecha', new Date(Date.now() - 30*86400000).toISOString().split('T')[0]).lte('fecha', new Date().toISOString().split('T')[0]),
+        supabase.from('gastos').select('monto').eq('user_id', deviceId).gte('fecha', new Date(Date.now() - 30*86400000).toISOString().split('T')[0]).lte('fecha', new Date().toISOString().split('T')[0]),
+        supabase.from('gasolina').select('costo').eq('user_id', deviceId).gte('fecha', new Date(Date.now() - 30*86400000).toISOString().split('T')[0]).lte('fecha', new Date().toISOString().split('T')[0])
+      ]);
 
-      if (!deudas || deudas.length === 0) {
-        document.getElementById('meta-resultado').innerHTML = '<p>No tienes deudas activas. ¡Sigue así! 🎉</p>';
+      var deudas = results[0].data || [];
+      var ingMes = (results[1].data || []).reduce(function(s, x){ return s + x.monto; }, 0);
+      var gasMes = (results[2].data || []).reduce(function(s, x){ return s + x.monto; }, 0);
+      var gasoMes = (results[3].data || []).reduce(function(s, x){ return s + x.costo; }, 0);
+      var promedioDiario = Math.max((ingMes - gasMes - gasoMes) / 30, 0);
+
+      if (deudas.length === 0 && promedioDiario <= 0) {
+        document.getElementById('meta-resultado').innerHTML = '<p style="text-align:center;padding:20px;">Sin deudas ni ingresos registrados 📭</p>';
         showModal('modal-meta');
         return;
       }
 
       var hoy = new Date();
       var totalDeuda = 0;
-      var diasRestantes = Infinity;
+      var pesoInteres = 0;
+      var deudasDetalle = [];
+
+      deudas.sort(function(a, b) { return (b.tasa_interes || 0) - (a.tasa_interes || 0); });
 
       for (var i = 0; i < deudas.length; i++) {
-        var restante = deudas[i].monto_total - deudas[i].monto_pagado;
+        var d = deudas[i];
+        var restante = d.monto_total - d.monto_pagado;
         totalDeuda += restante;
-        if (deudas[i].fecha_limite) {
-          var dias = Math.ceil((new Date(deudas[i].fecha_limite) - hoy) / 86400000);
-          if (dias > 0 && dias < diasRestantes) diasRestantes = dias;
-        }
+        pesoInteres += (d.tasa_interes || 0) * restante;
+        deudasDetalle.push({ nombre: d.nombre, restante: restante, tasa: d.tasa_interes || 0, fecha: d.fecha_limite });
       }
 
-      if (diasRestantes === Infinity) diasRestantes = 30;
-      var metaDiaria = totalDeuda / diasRestantes;
+      // Días restantes ponderados por fecha límite
+      var diasPorDeuda = deudasDetalle.map(function(d) {
+        if (d.fecha) {
+          var diff = Math.ceil((new Date(d.fecha) - hoy) / 86400000);
+          return diff > 0 ? diff : 1;
+        }
+        return 90; // default 90 days if no date
+      });
+      var diasRestantes = Math.min.apply(null, diasPorDeuda);
+      if (diasRestantes === Infinity || diasRestantes <= 0) diasRestantes = 30;
 
-      document.getElementById('meta-resultado').innerHTML =
-        '<div style="text-align:center;padding:20px 0;">' +
-          '<div style="font-size:14px;color:var(--text-dim);">Debes</div>' +
-          '<div style="font-size:28px;font-weight:700;color:var(--deuda);">S/ ' + totalDeuda.toFixed(2) + '</div>' +
-          '<div style="font-size:14px;color:var(--text-dim);margin:12px 0;">en ' + diasRestantes + ' días</div>' +
-          '<div style="font-size:14px;color:var(--text-dim);">Necesitas ganar diario</div>' +
-          '<div style="font-size:36px;font-weight:700;color:var(--ingreso);">S/ ' + metaDiaria.toFixed(2) + '</div>' +
+      var metaDiaria = totalDeuda / diasRestantes;
+      var porcentajeIngreso = promedioDiario > 0 ? Math.min((metaDiaria / promedioDiario) * 100, 100) : 100;
+      var sugerido = Math.min(metaDiaria, promedioDiario * 0.5);
+      var factible = promedioDiario >= metaDiaria;
+      var ahorroMensual = promedioDiario * 30 - totalDeuda;
+
+      var html =
+        '<div style="padding:12px 0;">' +
+          // Total deuda
+          '<div style="text-align:center;padding:12px 0;">' +
+            '<div style="font-size:12px;color:var(--text-dim);">💰 Deuda total activa</div>' +
+            '<div style="font-size:32px;font-weight:700;color:var(--deuda);">S/ ' + totalDeuda.toFixed(0) + '</div>' +
+          '</div>' +
+
+          // Meta diaria + factibilidad
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">' +
+            '<div style="background:var(--bg-input);padding:12px;border-radius:10px;text-align:center;">' +
+              '<div style="font-size:10px;color:var(--text-dim);">🎯 Meta diaria</div>' +
+              '<div style="font-size:22px;font-weight:700;color:var(--ingreso);margin-top:2px;">S/ ' + metaDiaria.toFixed(2) + '</div>' +
+              '<div style="font-size:10px;color:var(--text-dim);margin-top:4px;">para pagar en ' + diasRestantes + ' días</div>' +
+            '</div>' +
+            '<div style="background:var(--bg-input);padding:12px;border-radius:10px;text-align:center;">' +
+              '<div style="font-size:10px;color:var(--text-dim);">📊 Promedio diario</div>' +
+              '<div style="font-size:22px;font-weight:700;color:' + (factible ? 'var(--ingreso)' : 'var(--gasto)') + ';margin-top:2px;">S/ ' + promedioDiario.toFixed(2) + '</div>' +
+              '<div style="font-size:10px;color:var(--text-dim);margin-top:4px;">' + (factible ? '✅ Suficiente!' : '⚠️ Te faltan S/ ' + (metaDiaria - promedioDiario).toFixed(2) + '/día') + '</div>' +
+            '</div>' +
+          '</div>' +
+
+          // Barra de progreso (% de ingreso necesario)
+          '<div style="margin-top:12px;padding:10px;background:var(--bg-input);border-radius:10px;">' +
+            '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;">' +
+              '<span style="color:var(--text-dim);">% de tu ingreso para deudas</span>' +
+              '<span style="font-weight:600;">' + porcentajeIngreso.toFixed(0) + '%</span>' +
+            '</div>' +
+            '<div style="height:8px;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden;">' +
+              '<div style="height:100%;width:' + Math.min(porcentajeIngreso, 100) + '%;background:' + (porcentajeIngreso > 70 ? 'var(--gasto)' : porcentajeIngreso > 40 ? '#ffa500' : 'var(--ingreso)') + ';border-radius:4px;"></div>' +
+            '</div>' +
+            '<div style="font-size:11px;color:var(--text-dim);margin-top:6px;">' +
+              (factible
+                ? '💡 Si hoy ganas S/ ' + promedioDiario.toFixed(0) + ', destina S/ ' + sugerido.toFixed(0) + ' a deudas y guarda S/ ' + (promedioDiario - sugerido).toFixed(0)
+                : '💡 Necesitas aumentar tu ingreso diario en S/ ' + (metaDiaria - promedioDiario).toFixed(2) + ' para cumplir la meta') +
+            '</div>' +
+          '</div>' +
+
+          // Ranking de deudas por interés
+          (deudasDetalle.length > 0 ?
+            '<div style="margin-top:12px;">' +
+              '<div style="font-size:12px;color:var(--text-dim);margin-bottom:6px;">📋 Prioridad (mayor interés primero):</div>' +
+              deudasDetalle.map(function(d, i) {
+                var pct = d.restante > 0 && totalDeuda > 0 ? ((d.restante / totalDeuda) * 100).toFixed(0) : 0;
+                return '<div style="display:flex;justify-content:space-between;padding:6px 8px;background:var(--bg-input);border-radius:6px;margin-bottom:4px;font-size:12px;">' +
+                  '<span>' + (i+1) + '. ' + esc(d.nombre) + '</span>' +
+                  '<span style="color:var(--deuda);font-weight:600;">S/ ' + d.restante.toFixed(0) + (d.tasa > 0 ? ' (' + d.tasa + '%)' : '') + '</span>' +
+                '</div>';
+              }).join('') +
+            '</div>' : '') +
+
+          // Proyección a 30 días
+          (ahorroMensual > 0 ?
+            '<div style="margin-top:10px;padding:10px;background:var(--bg-input);border-radius:8px;font-size:12px;text-align:center;color:var(--ingreso);">' +
+              '🚀 Al paso actual, en 30 días tendrías S/ ' + ahorroMensual.toFixed(0) + ' libre después de pagar todo' +
+            '</div>' : '') +
         '</div>';
+
+      document.getElementById('meta-resultado').innerHTML = html;
       showModal('modal-meta');
     }
 
@@ -858,10 +1040,21 @@
         var html = '<h4 style="font-size:14px;color:var(--text-dim);margin-bottom:8px;">Activos esta semana:</h4>';
         for (var i = 0; i < data.length; i++) {
           var p = data[i];
-          var pct = p.monto_limite > 0 ? ((p.monto_gastado / p.monto_limite) * 100).toFixed(0) : 0;
-          html += '<div style="padding:8px;background:var(--bg-input);border-radius:8px;margin-bottom:8px;">' +
-            '<div style="display:flex;justify-content:space-between;"><span>' + esc(p.categoria) + '</span><span>' + pct + '% usado</span></div>' +
-            '<div style="font-size:13px;color:var(--text-dim);">S/ ' + p.monto_gastado.toFixed(2) + ' / S/ ' + p.monto_limite.toFixed(2) + '</div>' +
+          var pct = p.monto_limite > 0 ? ((p.monto_gastado / p.monto_limite) * 100) : 0;
+          var barColor = pct < 50 ? 'var(--ingreso)' : (pct < 80 ? '#ffa500' : 'var(--gasto)');
+          var restante = p.monto_limite - p.monto_gastado;
+          html += '<div style="padding:10px;background:var(--bg-input);border-radius:10px;margin-bottom:10px;">' +
+            '<div style="display:flex;justify-content:space-between;margin-bottom:6px;">' +
+              '<span style="font-weight:500;">' + esc(p.categoria) + '</span>' +
+              '<span style="font-size:13px;color:' + barColor + ';">' + pct.toFixed(0) + '% usado</span>' +
+            '</div>' +
+            '<div style="height:6px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden;margin-bottom:6px;">' +
+              '<div style="height:100%;width:' + Math.min(pct, 100) + '%;background:' + barColor + ';border-radius:3px;transition:width 0.3s;"></div>' +
+            '</div>' +
+            '<div style="display:flex;justify-content:space-between;font-size:12px;">' +
+              '<span style="color:var(--text-dim);">S/ ' + p.monto_gastado.toFixed(2) + ' gastado</span>' +
+              '<span style="color:' + (restante > 0 ? 'var(--ingreso)' : 'var(--gasto)') + ';">S/ ' + Math.max(restante, 0).toFixed(2) + ' restante</span>' +
+            '</div>' +
           '</div>';
         }
         container.innerHTML = html;
