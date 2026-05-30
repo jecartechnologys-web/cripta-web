@@ -410,8 +410,6 @@ async function loadPasivosTab() {
       e.stopPropagation();
       const id = parseInt(btn.dataset.id);
       const restante = parseFloat(btn.dataset.restante);
-      showToast('🔍 Debug: id=' + id + ' rest=' + restante, 'info');
-      console.log('[DEBUG] Pagar click:', { id, restante });
       abrirModalPago(id, restante);
     });
   });
@@ -478,12 +476,9 @@ async function loadProximosPagos(pasivos) {
 }
 
 function abrirModalPago(id, restante) {
-  console.log('[DEBUG] abrirModalPago called:', { id, restante });
   try {
     const infoEl = document.getElementById('pago-info');
     const montoEl = document.getElementById('pago-monto');
-    console.log('[DEBUG] DOM elements:', { infoEl: !!infoEl, montoEl: !!montoEl });
-    
     pasivoPagarId = id;
     pasivoPagarRestante = restante;
     infoEl.textContent = 'Restante: ' + formatSoles(restante);
@@ -492,8 +487,8 @@ function abrirModalPago(id, restante) {
     showModal('modal-pago');
     montoEl?.focus();
   } catch (e) {
-    console.error('[DEBUG] Error in abrirModalPago:', e);
-    showToast('Error: ' + e.message, 'error');
+    console.error('[ERROR] abrirModalPago:', e);
+    showToast('Error al abrir pago', 'error');
   }
 }
 

@@ -239,131 +239,134 @@
             <span>Resumen</span>
           </button>
         </div>
-      </div>
+    </div>
 
-      <!-- Modal Meta -->
-      <div id="modal-meta" class="modal" aria-hidden="true">
-        <div class="modal-content">
-          <h3>🎯 Meta Diaria</h3>
-          <div id="meta-resultado"></div>
-          <button class="btn btn-primary btn-block" id="btn-cerrar-meta">Cerrar</button>
+  </div>
+
+    <!-- Modals (fuera de tab-content para que no hereden display:none) -->
+
+    <!-- Modal Meta -->
+    <div id="modal-meta" class="modal" aria-hidden="true">
+      <div class="modal-content">
+        <h3>🎯 Meta Diaria</h3>
+        <div id="meta-resultado"></div>
+        <button class="btn btn-primary btn-block" id="btn-cerrar-meta">Cerrar</button>
+      </div>
+    </div>
+
+    <!-- Modal Proyectar -->
+    <div id="modal-proyectar" class="modal" aria-hidden="true">
+      <div class="modal-content">
+        <h3>📈 Proyección</h3>
+        <div class="form-group">
+          <label for="proyectar-dias">Días a proyectar</label>
+          <input type="number" id="proyectar-dias" value="7" min="1" max="90">
+        </div>
+        <div id="proyectar-resultado"></div>
+        <div class="form-actions">
+          <button class="btn btn-secondary" id="btn-cancelar-proyectar">Cancelar</button>
+          <button class="btn btn-primary" id="btn-proyectar">Calcular</button>
         </div>
       </div>
+    </div>
 
-      <!-- Modal Proyectar -->
-      <div id="modal-proyectar" class="modal" aria-hidden="true">
-        <div class="modal-content">
-          <h3>📈 Proyección</h3>
+    <!-- Modal Simular -->
+    <div id="modal-simular" class="modal" aria-hidden="true">
+      <div class="modal-content">
+        <h3>🧪 Simular Escenario</h3>
+        <div class="form-group">
+          <label for="simular-ingreso">Ingreso adicional (S/)</label>
+          <input type="number" id="simular-ingreso" step="0.01" value="0">
+        </div>
+        <div class="form-group">
+          <label for="simular-gasto">Gasto adicional (S/)</label>
+          <input type="number" id="simular-gasto" step="0.01" value="0">
+        </div>
+        <div id="simular-resultado"></div>
+        <div class="form-actions">
+          <button class="btn btn-secondary" id="btn-cancelar-simular">Cancelar</button>
+          <button class="btn btn-primary" id="btn-simular">Simular</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Presupuesto -->
+    <div id="modal-presupuesto" class="modal" aria-hidden="true">
+      <div class="modal-content">
+        <h3>📋 Presupuesto Semanal</h3>
+        <form id="form-presupuesto">
           <div class="form-group">
-            <label for="proyectar-dias">Días a proyectar</label>
-            <input type="number" id="proyectar-dias" value="7" min="1" max="90">
-          </div>
-          <div id="proyectar-resultado"></div>
-          <div class="form-actions">
-            <button class="btn btn-secondary" id="btn-cancelar-proyectar">Cancelar</button>
-            <button class="btn btn-primary" id="btn-proyectar">Calcular</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Modal Simular -->
-      <div id="modal-simular" class="modal" aria-hidden="true">
-        <div class="modal-content">
-          <h3>🧪 Simular Escenario</h3>
-          <div class="form-group">
-            <label for="simular-ingreso">Ingreso adicional (S/)</label>
-            <input type="number" id="simular-ingreso" step="0.01" value="0">
+            <label for="presupuesto-categoria">Categoría</label>
+            <select id="presupuesto-categoria">
+              <option value="comida">Comida</option>
+              <option value="transporte">Transporte</option>
+              <option value="gasolina">Gasolina</option>
+              <option value="salud">Salud</option>
+              <option value="inversion">Inversión</option>
+              <option value="otro">Otro</option>
+            </select>
           </div>
           <div class="form-group">
-            <label for="simular-gasto">Gasto adicional (S/)</label>
-            <input type="number" id="simular-gasto" step="0.01" value="0">
-          </div>
-          <div id="simular-resultado"></div>
-          <div class="form-actions">
-            <button class="btn btn-secondary" id="btn-cancelar-simular">Cancelar</button>
-            <button class="btn btn-primary" id="btn-simular">Simular</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Modal Presupuesto -->
-      <div id="modal-presupuesto" class="modal" aria-hidden="true">
-        <div class="modal-content">
-          <h3>📋 Presupuesto Semanal</h3>
-          <form id="form-presupuesto">
-            <div class="form-group">
-              <label for="presupuesto-categoria">Categoría</label>
-              <select id="presupuesto-categoria">
-                <option value="comida">Comida</option>
-                <option value="transporte">Transporte</option>
-                <option value="gasolina">Gasolina</option>
-                <option value="salud">Salud</option>
-                <option value="inversion">Inversión</option>
-                <option value="otro">Otro</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="presupuesto-monto">Límite semanal (S/)</label>
-              <input type="number" id="presupuesto-monto" step="0.01" required min="0.01">
-            </div>
-            <div class="form-actions">
-              <button type="button" class="btn btn-secondary" id="btn-cancelar-presupuesto">Cancelar</button>
-              <button type="submit" class="btn btn-primary">Crear</button>
-            </div>
-          </form>
-          <div id="presupuestos-activos" class="presupuestos-activos"></div>
-        </div>
-      </div>
-
-      <!-- Modal Plan Salida -->
-      <div id="modal-salida" class="modal" aria-hidden="true">
-        <div class="modal-content">
-          <h3>🚀 Plan de Salida</h3>
-          <div id="salida-resultado"></div>
-          <button class="btn btn-primary btn-block" id="btn-cerrar-salida">Cerrar</button>
-        </div>
-      </div>
-
-      <!-- Modal Resumen -->
-      <div id="modal-resumen" class="modal" aria-hidden="true">
-        <div class="modal-content">
-          <h3>📊 Resumen Financiero</h3>
-          <div id="resumen-contenido"></div>
-          <button class="btn btn-primary btn-block" id="btn-cerrar-resumen">Cerrar</button>
-        </div>
-      </div>
-
-      <!-- Modal Pago Pasivo -->
-      <div id="modal-pago" class="modal" aria-hidden="true">
-        <div class="modal-content">
-          <h3>💳 Pagar Pasivo</h3>
-          <p id="pago-info" class="pago-info"></p>
-          <div class="form-group">
-            <label for="pago-monto">Monto a pagar (S/)</label>
-            <input type="number" id="pago-monto" step="0.01" min="0.01" required>
+            <label for="presupuesto-monto">Límite semanal (S/)</label>
+            <input type="number" id="presupuesto-monto" step="0.01" required min="0.01">
           </div>
           <div class="form-actions">
-            <button class="btn btn-secondary" id="btn-cancelar-pago">Cancelar</button>
-            <button class="btn btn-primary" id="btn-confirmar-pago">Pagar</button>
+            <button type="button" class="btn btn-secondary" id="btn-cancelar-presupuesto">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Crear</button>
           </div>
+        </form>
+        <div id="presupuestos-activos" class="presupuestos-activos"></div>
+      </div>
+    </div>
+
+    <!-- Modal Plan Salida -->
+    <div id="modal-salida" class="modal" aria-hidden="true">
+      <div class="modal-content">
+        <h3>🚀 Plan de Salida</h3>
+        <div id="salida-resultado"></div>
+        <button class="btn btn-primary btn-block" id="btn-cerrar-salida">Cerrar</button>
+      </div>
+    </div>
+
+    <!-- Modal Resumen -->
+    <div id="modal-resumen" class="modal" aria-hidden="true">
+      <div class="modal-content">
+        <h3>📊 Resumen Financiero</h3>
+        <div id="resumen-contenido"></div>
+        <button class="btn btn-primary btn-block" id="btn-cerrar-resumen">Cerrar</button>
+      </div>
+    </div>
+
+    <!-- Modal Pago Pasivo -->
+    <div id="modal-pago" class="modal" aria-hidden="true">
+      <div class="modal-content">
+        <h3>💳 Pagar Pasivo</h3>
+        <p id="pago-info" class="pago-info"></p>
+        <div class="form-group">
+          <label for="pago-monto">Monto a pagar (S/)</label>
+          <input type="number" id="pago-monto" step="0.01" min="0.01" required>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-secondary" id="btn-cancelar-pago">Cancelar</button>
+          <button class="btn btn-primary" id="btn-confirmar-pago">Pagar</button>
         </div>
       </div>
+    </div>
 
-      <!-- Modal Detalle Pasivo -->
-      <div id="modal-detalle-pasivo" class="modal" aria-hidden="true">
-        <div class="modal-content">
-          <h3 id="detalle-titulo">🌀 Detalle del Pasivo</h3>
-          <div id="detalle-contenido"></div>
-          <button class="btn btn-primary btn-block" id="btn-cerrar-detalle">Cerrar</button>
-        </div>
+    <!-- Modal Detalle Pasivo -->
+    <div id="modal-detalle-pasivo" class="modal" aria-hidden="true">
+      <div class="modal-content">
+        <h3 id="detalle-titulo">🌀 Detalle del Pasivo</h3>
+        <div id="detalle-contenido"></div>
+        <button class="btn btn-primary btn-block" id="btn-cerrar-detalle">Cerrar</button>
       </div>
+    </div>
 
-      <!-- Modal Panel Pasivos -->
-      <div id="modal-pasivos-panel" class="modal" aria-hidden="true">
-        <div class="modal-content modal-content-tall">
-          <div id="pasivos-panel-contenido"></div>
-          <button class="btn btn-primary btn-block" id="btn-cerrar-pasivos-panel">Cerrar</button>
-        </div>
+    <!-- Modal Panel Pasivos -->
+    <div id="modal-pasivos-panel" class="modal" aria-hidden="true">
+      <div class="modal-content modal-content-tall">
+        <div id="pasivos-panel-contenido"></div>
+        <button class="btn btn-primary btn-block" id="btn-cerrar-pasivos-panel">Cerrar</button>
       </div>
     </div>
 

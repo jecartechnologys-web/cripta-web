@@ -33,10 +33,7 @@ export function showToast(msg, type = 'success') {
 // ─── Modales ──────────────────────────────────
 export function showModal(id) {
   const el = document.getElementById(id);
-  if (!el) {
-    console.error('[DEBUG] showModal: element not found:', id);
-    return;
-  }
+  if (!el) { return; }
   el.style.display = 'flex';
   el.setAttribute('aria-hidden', 'false');
 }
