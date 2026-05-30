@@ -410,6 +410,8 @@ async function loadPasivosTab() {
       e.stopPropagation();
       const id = parseInt(btn.dataset.id);
       const restante = parseFloat(btn.dataset.restante);
+      showToast('🔍 Debug: id=' + id + ' rest=' + restante, 'info');
+      console.log('[DEBUG] Pagar click:', { id, restante });
       abrirModalPago(id, restante);
     });
   });
@@ -476,13 +478,23 @@ async function loadProximosPagos(pasivos) {
 }
 
 function abrirModalPago(id, restante) {
-  pasivoPagarId = id;
-  pasivoPagarRestante = restante;
-  document.getElementById('pago-info').textContent = 'Restante: ' + formatSoles(restante);
-  document.getElementById('pago-monto').value = '';
-  document.getElementById('pago-monto').max = restante;
-  showModal('modal-pago');
-  document.getElementById('pago-monto')?.focus();
+  console.log('[DEBUG] abrirModalPago called:', { id, restante });
+  try {
+    const infoEl = document.getElementById('pago-info');
+    const montoEl = document.getElementById('pago-monto');
+    console.log('[DEBUG] DOM elements:', { infoEl: !!infoEl, montoEl: !!montoEl });
+    
+    pasivoPagarId = id;
+    pasivoPagarRestante = restante;
+    infoEl.textContent = 'Restante: ' + formatSoles(restante);
+    montoEl.value = '';
+    montoEl.max = restante;
+    showModal('modal-pago');
+    montoEl?.focus();
+  } catch (e) {
+    console.error('[DEBUG] Error in abrirModalPago:', e);
+    showToast('Error: ' + e.message, 'error');
+  }
 }
 
 async function confirmarPago() {
