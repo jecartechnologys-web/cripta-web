@@ -1,7 +1,32 @@
 /* =============================================
    CRIPTA PRO — Enterprise Fintech UI
    v3.0 — Glass dark, data-rich, zero deps
-   ============================================= */
+   Stack: CSS custom properties, flexbox, grid.
+   Mobile-first SPA con modales bottom-sheet.
+   =============================================
+
+   ─── Index ──────────────────────────────
+   1. Design Tokens .......... :root vars
+   2. Reset ................. *, html, body
+   3. Screens ............... .screen
+   4. Header ................ .header
+   5. Tab Bar ............... .tabs, .tab
+   6. Tab Content ........... .tab-content
+   7. Cards ................. .card, .neto-card
+   8. Stats Grid ............ .stats-grid, .stat-card
+   9. Forms ................. .form-group
+  10. Buttons ............... .btn, .btn-primary
+  11. Type Selector ......... .type-selector
+  12. Lists ................. .list, .list-item
+  13. Debt Cards ............ .deuda-card, .pasivo-card
+  14. Tools Grid ............ .tools-grid
+  15. Modal ................ .modal, .modal-content
+  16. Toast ................ .toast
+  17. Canvas Chart .......... #chart-canvas
+  18. Confirm Dialog ........ .confirm-overlay
+  19. Loading Screen ........ .loading-screen
+  20. Utilities & Responsive . @media, scrollbar
+   ───────────────────────────────────────── */
 
 /* ─── Design Tokens ─────────────────────────── */
 :root {

@@ -39,6 +39,16 @@ let movimientoProcessing = false;
 // =============================================
 // INIT
 // =============================================
+
+/**
+ * Inicializa la aplicación al cargarse.
+ * Crea el cliente de Supabase, obtiene el identificador del dispositivo,
+ * configura los event listeners de tabs, selector de tipo, formularios,
+ * modales, herramientas (tools) y tarjetas de estadísticas.
+ * Finalmente, carga los datos del dashboard.
+ *
+ * @returns {void}
+ */
 function initApp() {
   supabase = createClient();
   deviceId = getDeviceId();
@@ -108,6 +118,15 @@ function initApp() {
 // =============================================
 // TABS
 // =============================================
+
+/**
+ * Cambia la pestaña activa en la interfaz.
+ * Actualiza las clases CSS de la pestaña y del contenido,
+ * y carga los datos correspondientes a la pestaña seleccionada.
+ *
+ * @param {string} tabName - Nombre de la pestaña ('dashboard', 'pasivos', 'inversiones')
+ * @returns {void}
+ */
 function switchTab(tabName) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelector(`.tab[data-tab="${tabName}"]`).classList.add('active');
@@ -124,6 +143,15 @@ function switchTab(tabName) {
 // =============================================
 // TYPE SELECTOR
 // =============================================
+
+/**
+ * Selecciona el tipo de movimiento activo.
+ * Actualiza la interfaz del selector y muestra u oculta
+ * los campos específicos para gasolina (litros y kilómetros).
+ *
+ * @param {string} type - Tipo de movimiento ('ingreso', 'gasto', 'gasolina', 'inversion')
+ * @returns {void}
+ */
 function selectType(type) {
   currentType = type;
   document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
@@ -138,6 +166,16 @@ function selectType(type) {
 // =============================================
 // DASHBOARD
 // =============================================
+
+/**
+ * Carga y actualiza los datos del dashboard del día actual.
+ * Consulta ingresos, gastos, gasolina del día, totales del mes,
+ * historial reciente y gráfico de 7 días. Actualiza todos los
+ * elementos del DOM correspondientes.
+ *
+ * @async
+ * @returns {Promise<void>}
+ */
 async function loadDashboard() {
   const data = await loadDashboardData(supabase, deviceId);
   if (!data) return;
@@ -161,6 +199,15 @@ async function loadDashboard() {
 }
 
 // ─── Historial ────────────────────────────────
+
+/**
+ * Carga y renderiza el historial de movimientos del día actual.
+ * Muestra cada movimiento como un elemento clickeable que permite
+ * eliminarlo con confirmación previa mediante showConfirm.
+ *
+ * @async
+ * @returns {Promise<void>}
+ */
 async function loadHistorialTab() {
   const items = await loadHistorial(supabase, deviceId);
   const list = document.getElementById('historial-list');
@@ -208,6 +255,16 @@ async function loadHistorialTab() {
 }
 
 // ─── Chart 7 días ─────────────────────────────
+
+/**
+ * Dibuja un gráfico de barras de los últimos 7 días en un canvas.
+ * Consulta los datos agregados por día y renderiza barras
+ * verdes (saldo positivo) o rojas (saldo negativo). Escala
+ * las barras según el valor máximo del período.
+ *
+ * @async
+ * @returns {Promise<void>}
+ */
 async function drawChart7d() {
   const canvas = document.getElementById('chart-canvas');
   if (!canvas) return;
@@ -258,6 +315,17 @@ async function drawChart7d() {
 // =============================================
 // REGISTRAR MOVIMIENTO
 // =============================================
+
+/**
+ * Maneja el envío del formulario de registro de movimiento.
+ * Valida el monto, registra el movimiento en Supabase, actualiza
+ * el presupuesto correspondiente si aplica, y recarga el dashboard.
+ * Previene doble envío con la bandera movimientoProcessing.
+ *
+ * @async
+ * @param {Event} e - Evento de submit del formulario de movimiento
+ * @returns {Promise<void>}
+ */
 async function handleMovimiento(e) {
   e.preventDefault();
   if (movimientoProcessing) return;
@@ -304,6 +372,18 @@ async function handleMovimiento(e) {
 // =============================================
 // MODO RÁPIDO
 // =============================================
+
+/**
+ * Maneja el envío del formulario de modo rápido (entrada
+ * de lenguaje natural). Interpreta el texto mediante
+ * parseModoRapido, registra el movimiento y actualiza
+ * presupuestos si corresponde. Muestra retroalimentación
+ * visual en un preview.
+ *
+ * @async
+ * @param {Event} e - Evento de submit del formulario rápido
+ * @returns {Promise<void>}
+ */
 async function handleModoRapido(e) {
   e.preventDefault();
   if (rapidoProcessing) return;
@@ -358,6 +438,16 @@ async function handleModoRapido(e) {
 // =============================================
 // PASIVOS
 // =============================================
+
+/**
+ * Carga y renderiza la pestaña de pasivos.
+ * Consulta todos los pasivos del usuario, muestra tarjetas
+ * con progreso de pago, botones de acción (pagar, liberar,
+ * eliminar) y carga la lista de próximos pagos.
+ *
+ * @async
+ * @returns {Promise<void>}
+ */
 async function loadPasivosTab() {
   const pasivos = await loadPasivos(supabase, deviceId);
   const list = document.getElementById('pasivos-list');
@@ -446,6 +536,15 @@ async function loadPasivosTab() {
   await loadProximosPagos(pasivos);
 }
 
+/**
+ * Carga y renderiza la lista de próximos pagos de pasivos activos.
+ * Filtra los pasivos no liberados con fecha límite, los ordena
+ * por fecha ascendente y los muestra indicando urgencia (≤ 3 días).
+ *
+ * @async
+ * @param {Array<Object>} pasivos - Lista completa de pasivos del usuario
+ * @returns {Promise<void>}
+ */
 async function loadProximosPagos(pasivos) {
   const list = document.getElementById('proximos-list');
   if (!list) return;
@@ -478,6 +577,15 @@ async function loadProximosPagos(pasivos) {
   }).join('');
 }
 
+/**
+ * Abre el modal de pago para un pasivo específico.
+ * Configura el identificador del pasivo, el monto restante
+ * y el valor máximo del campo de entrada.
+ *
+ * @param {number} id - ID del pasivo a pagar
+ * @param {number} restante - Monto restante del pasivo
+ * @returns {void}
+ */
 function abrirModalPago(id, restante) {
   try {
     const infoEl = document.getElementById('pago-info');
@@ -495,6 +603,14 @@ function abrirModalPago(id, restante) {
   }
 }
 
+/**
+ * Confirma y procesa el pago de un pasivo.
+ * Valida el monto ingresado, registra el pago en Supabase,
+ * oculta el modal y recarga los datos de pasivos y dashboard.
+ *
+ * @async
+ * @returns {Promise<void>}
+ */
 async function confirmarPago() {
   const monto = parseFloat(document.getElementById('pago-monto').value);
   if (isNaN(monto) || monto <= 0 || monto > pasivoPagarRestante) {
@@ -516,6 +632,16 @@ async function confirmarPago() {
   }
 }
 
+/**
+ * Marca un pasivo como liberado previa confirmación del usuario.
+ * Muestra un diálogo de confirmación y, si es aceptado,
+ * actualiza el estado del pasivo a 'pagada' en Supabase.
+ *
+ * @async
+ * @param {number} id - ID del pasivo a liberar
+ * @param {number} montoTotal - Monto total del pasivo
+ * @returns {Promise<void>}
+ */
 async function marcarLiberadoConConfirm(id, montoTotal) {
   const confirmed = await showConfirm({
     title: '🎉 Liberar Pasivo',
@@ -534,6 +660,15 @@ async function marcarLiberadoConConfirm(id, montoTotal) {
   }
 }
 
+/**
+ * Elimina un pasivo con confirmación previa del usuario.
+ * Muestra un diálogo de confirmación y, si es aceptado,
+ * elimina el pasivo y sus pagos asociados de Supabase.
+ *
+ * @async
+ * @param {number} id - ID del pasivo a eliminar
+ * @returns {Promise<void>}
+ */
 async function eliminarConConfirm(id) {
   const confirmed = await showConfirm({
     title: 'Eliminar pasivo',
@@ -552,6 +687,15 @@ async function eliminarConConfirm(id) {
   }
 }
 
+/**
+ * Muestra el detalle completo de un pasivo en un modal.
+ * Consulta los datos del pasivo, calcula progreso de pago,
+ * interés y fecha límite, y renderiza la información en el DOM.
+ *
+ * @async
+ * @param {number} id - ID del pasivo a consultar
+ * @returns {Promise<void>}
+ */
 async function mostrarDetallePasivo(id) {
   try {
     const pasivos = await loadPasivos(supabase, deviceId);
@@ -598,6 +742,16 @@ async function mostrarDetallePasivo(id) {
 }
 
 // ─── Formulario nuevo pasivo ──────────────────
+
+/**
+ * Maneja el envío del formulario de registro de un nuevo pasivo.
+ * Valida nombre y monto, crea el pasivo en Supabase,
+ * cierra el modal y recarga la pestaña de pasivos.
+ *
+ * @async
+ * @param {Event} e - Evento de submit del formulario de nuevo pasivo
+ * @returns {Promise<void>}
+ */
 async function handlePasivo(e) {
   e.preventDefault();
   const nombre = document.getElementById('pasivo-nombre').value.trim();
@@ -627,6 +781,16 @@ async function handlePasivo(e) {
 // =============================================
 // INVERSIONES
 // =============================================
+
+/**
+ * Carga y renderiza la pestaña de inversiones.
+ * Consulta todas las inversiones del mes, las muestra en una lista
+ * con opción de eliminar (con confirmación) y actualiza el total
+ * invertido en el mes.
+ *
+ * @async
+ * @returns {Promise<void>}
+ */
 async function loadInversionesTab() {
   const inversiones = await loadInversiones(supabase, deviceId);
   const list = document.getElementById('inversiones-list');
@@ -677,6 +841,15 @@ async function loadInversionesTab() {
 // =============================================
 // TOOLS
 // =============================================
+
+/**
+ * Enruta la acción de una herramienta (tool) seleccionada.
+ * Ejecuta la función correspondiente según el identificador:
+ * meta, proyectar, simular, salida, exportar, presupuesto o resumen.
+ *
+ * @param {string} tool - Identificador de la herramienta ('meta', 'proyectar', 'simular', 'salida', 'exportar', 'presupuesto', 'resumen')
+ * @returns {void}
+ */
 function handleTool(tool) {
   const actions = {
     meta: showMeta,
@@ -691,6 +864,16 @@ function handleTool(tool) {
 }
 
 // ─── Meta ────────────────────────────────────
+
+/**
+ * Calcula y muestra la meta financiera diaria para liberar
+ * todos los pasivos activos antes de su fecha límite.
+ * Considera el promedio de ingreso diario, el total de deudas
+ * y las tasas de interés para priorizar y sugerir un plan.
+ *
+ * @async
+ * @returns {Promise<void>}
+ */
 async function showMeta() {
   const { deudas, promedioDiario } = await loadMetaData(supabase, deviceId);
 
@@ -789,6 +972,15 @@ async function showMeta() {
 }
 
 // ─── Proyectar ───────────────────────────────
+
+/**
+ * Calcula y muestra una proyección financiera basada en el
+ * promedio diario de los últimos 30 días y la cantidad de
+ * días especificada por el usuario.
+ *
+ * @async
+ * @returns {Promise<void>}
+ */
 async function handleProyectar() {
   const dias = parseInt(document.getElementById('proyectar-dias').value, 10) || 7;
   const promedioDiario = await promediarUltimos30Dias(supabase, deviceId);
@@ -805,6 +997,15 @@ async function handleProyectar() {
 }
 
 // ─── Simular ─────────────────────────────────
+
+/**
+ * Simula un escenario financiero mensual aplicando un ingreso
+ * extra y/o un gasto extra al promedio diario actual, y muestra
+ * la diferencia con la situación actual.
+ *
+ * @async
+ * @returns {Promise<void>}
+ */
 async function handleSimular() {
   const ingresoExtra = parseFloat(document.getElementById('simular-ingreso').value) || 0;
   const gastoExtra = parseFloat(document.getElementById('simular-gasto').value) || 0;
@@ -827,6 +1028,16 @@ async function handleSimular() {
 }
 
 // ─── Plan Salida ─────────────────────────────
+
+/**
+ * Genera y muestra un plan de salida de deudas.
+ * Lista los pasivos activos ordenados por tasa de interés
+ * descendente (priorizando los de mayor interés) y muestra
+ * el total de la deuda activa.
+ *
+ * @async
+ * @returns {Promise<void>}
+ */
 async function showSalida() {
   const pasivos = await loadPasivos(supabase, deviceId);
   const activos = pasivos.filter(p => p.estado !== 'pagada');
@@ -867,6 +1078,14 @@ async function showSalida() {
 }
 
 // ─── Exportar CSV ────────────────────────────
+
+/**
+ * Exporta todos los datos del usuario a un archivo CSV
+ * descargable mediante la función exportarCSV de db.js.
+ *
+ * @async
+ * @returns {Promise<void>}
+ */
 async function handleExportar() {
   try {
     await exportarCSV(supabase, deviceId);
@@ -877,6 +1096,15 @@ async function handleExportar() {
 }
 
 // ─── Resumen ─────────────────────────────────
+
+/**
+ * Muestra un resumen mensual completo con ingresos, gastos,
+ * ganancia neta, promedio diario, proyección mensual,
+ * inversiones, pasivos y porcentaje de liberación.
+ *
+ * @async
+ * @returns {Promise<void>}
+ */
 async function showResumen() {
   const data = await resumenMensual(supabase, deviceId);
   if (!data) {
@@ -945,6 +1173,15 @@ async function showResumen() {
 }
 
 // ─── Stats: listas detalladas del mes ────────
+
+/**
+ * Muestra el detalle de todos los ingresos del mes actual
+ * en un modal, incluyendo el total acumulado y el desglose
+ * por cada movimiento.
+ *
+ * @async
+ * @returns {Promise<void>}
+ */
 async function showIngresosMes() {
   const items = await loadMovimientosMes(supabase, deviceId, 'ingresos');
   const total = items.reduce((s, i) => s + i.monto, 0);
@@ -972,6 +1209,14 @@ async function showIngresosMes() {
   showModal('modal-lista');
 }
 
+/**
+ * Muestra el detalle de todos los gastos del mes actual
+ * (incluyendo gasolina) en un modal, con total acumulado
+ * y desglose por movimiento.
+ *
+ * @async
+ * @returns {Promise<void>}
+ */
 async function showGastosMes() {
   const gastos = await loadMovimientosMes(supabase, deviceId, 'gastos');
   const gasolina = await loadMovimientosMes(supabase, deviceId, 'gasolina');
@@ -1003,6 +1248,14 @@ async function showGastosMes() {
   showModal('modal-lista');
 }
 
+/**
+ * Muestra la lista completa de pasivos (activos y liberados)
+ * en un modal, con indicador de progreso, interés y fecha
+ * límite para cada uno.
+ *
+ * @async
+ * @returns {Promise<void>}
+ */
 async function showPasivosList() {
   const pasivos = await loadPasivos(supabase, deviceId);
   const activos = pasivos.filter(p => p.estado !== 'pagada');
@@ -1045,6 +1298,13 @@ async function showPasivosList() {
   showModal('modal-lista');
 }
 
+/**
+ * Muestra el detalle de todas las inversiones del mes actual
+ * en un modal, con total acumulado y desglose por movimiento.
+ *
+ * @async
+ * @returns {Promise<void>}
+ */
 async function showInversionesMes() {
   const items = await loadMovimientosMes(supabase, deviceId, 'gastos');
   const inversiones = items.filter(i => i.categoria === 'inversion' || i.descripcion?.toLowerCase().includes('inversi'));
@@ -1074,6 +1334,16 @@ async function showInversionesMes() {
 }
 
 // ─── Presupuesto ─────────────────────────────
+
+/**
+ * Carga y muestra los presupuestos activos de la semana.
+ * Renderiza barras de progreso con colores según el nivel
+ * de uso (verde < 50 %, amarillo < 80 %, rojo ≥ 80 %)
+ * y muestra el monto gastado y restante.
+ *
+ * @async
+ * @returns {Promise<void>}
+ */
 async function showPresupuesto() {
   const presupuestos = await loadPresupuestosActivos(supabase, deviceId);
   const container = document.getElementById('presupuestos-activos');
@@ -1107,6 +1377,15 @@ async function showPresupuesto() {
   showModal('modal-presupuesto');
 }
 
+/**
+ * Maneja el envío del formulario de creación de presupuesto.
+ * Valida el monto, crea el presupuesto en Supabase, cierra el
+ * modal y recarga la vista de presupuestos.
+ *
+ * @async
+ * @param {Event} e - Evento de submit del formulario de presupuesto
+ * @returns {Promise<void>}
+ */
 async function handlePresupuesto(e) {
   e.preventDefault();
   const categoria = document.getElementById('presupuesto-categoria').value;

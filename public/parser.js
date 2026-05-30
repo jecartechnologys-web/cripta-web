@@ -1,15 +1,31 @@
 /**
  * CRIPTA — Parser Module v4.0
- * Modo Rápido: texto natural a movimiento financiero.
+ * Modo Rápido: parseo de texto natural a movimiento financiero.
+ * Categorías centralizadas y utilidades de identificación.
+ *
+ * @module parser
  */
 
 // ─── Categorías centralizadas ────────────────
+
+/**
+ * Mapa de categorías válidas por tipo de movimiento.
+ * @type {Readonly<{
+ *   ingreso: string[],
+ *   gasto: string[],
+ *   gasolina: string[]
+ * }>}
+ */
 export const CATEGORIAS = Object.freeze({
   ingreso: ['delivery', 'general', 'otro'],
   gasto: ['general', 'delivery', 'comida', 'transporte', 'salud', 'inversion', 'otro'],
   gasolina: ['gasolina']
 });
 
+/**
+ * Etiquetas legibles para cada categoría.
+ * @type {Readonly<Record<string, string>>}
+ */
 export const CATEGORIA_LABELS = Object.freeze({
   general: 'General',
   delivery: 'Delivery',
@@ -24,8 +40,8 @@ export const CATEGORIA_LABELS = Object.freeze({
 // ─── Patrones de detección ───────────────────
 const PATRONES = {
   ingreso: [
-    /\bingreso\b/i, /\bgan[eé]\b/i, /\bganancia\b/i,
-    /\brecib[iióo]\b/i, /\bcobr[ée]\b/i, /\bpago\s+(recibido|recib[ií])/i,
+    /\bingreso\b/i, /\bgan[ée]\b/i, /\bganancia\b/i,
+    /\brecib[iíóo]\b/i, /\bcobr[ée]\b/i, /\bpago\s+(recibido|recib[ií])/i,
     /\bpedido\b/i, /\bentrega\b/i, /\bpropina\b/i
   ],
   gasto: [
@@ -52,6 +68,25 @@ const CATEGORIA_GASTO = {
 };
 
 // ─── Parsear texto natural ────────────────────
+
+/**
+ * Parsea una línea de texto en modo rápido y extrae los datos de un movimiento financiero.
+ * Detecta automáticamente el tipo (ingreso, gasto, gasolina, inversión),
+ * la categoría, el monto y, para gasolina, los litros y kilómetros.
+ *
+ * El orden de prioridad para detectar el tipo es:
+ * inversión > gasolina > ingreso > gasto (por defecto).
+ *
+ * @param {string} text - Texto libre ingresado por el usuario (ej: "gasolina 50 soles 3 litros")
+ * @returns {null|{
+ *   tipo: 'ingreso'|'gasto'|'gasolina'|'inversion',
+ *   monto: number,
+ *   categoria: string,
+ *   descripcion: string,
+ *   litros: number,
+ *   km: number
+ * }} Objeto con los datos parseados, o `null` si no se pudo extraer un monto válido
+ */
 export function parseModoRapido(text) {
   const trimmed = text.trim();
   if (!trimmed) return null;
@@ -80,7 +115,7 @@ export function parseModoRapido(text) {
     categoria = 'gasolina';
     const litrosMatch = lower.match(/(\d+\.?\d*)\s*litros?/);
     if (litrosMatch) litros = parseFloat(litrosMatch[1]);
-    const kmMatch = lower.match(/(\d+\.?\d*)\s*(?:km|kil[oó]metros?|kms)/);
+    const kmMatch = lower.match(/(\d+\.?\d*)\s*(?:km|kil[óo]metros?|kms)/);
     if (kmMatch) km = parseFloat(kmMatch[1]);
   } else if (matchAny(lower, PATRONES.ingreso)) {
     tipo = 'ingreso';
@@ -101,11 +136,26 @@ export function parseModoRapido(text) {
   return { tipo, monto, categoria, descripcion, litros, km };
 }
 
+/**
+ * Evalúa si un texto coincide con al menos uno de los patrones de una lista.
+ * Función interna auxiliar.
+ *
+ * @param {string} text - Texto a evaluar
+ * @param {RegExp[]} patterns - Arreglo de expresiones regulares
+ * @returns {boolean} `true` si al menos un patrón coincide
+ */
 function matchAny(text, patterns) {
   return patterns.some(p => p.test(text));
 }
 
 // ─── Icono por tipo ──────────────────────────
+
+/**
+ * Devuelve un emoji representativo según el tipo de movimiento.
+ *
+ * @param {string} tipo - Tipo de movimiento ('ingreso', 'gasto', 'inversion', 'gasolina')
+ * @returns {string} Emoji correspondiente al tipo, o '📝' por defecto
+ */
 export function iconoTipo(tipo) {
   const icons = {
     ingreso: '💰',
@@ -116,6 +166,12 @@ export function iconoTipo(tipo) {
   return icons[tipo] || '📝';
 }
 
+/**
+ * Devuelve el nombre del tipo con la primera letra en mayúscula.
+ *
+ * @param {string} tipo - Tipo de movimiento ('ingreso', 'gasto', etc.)
+ * @returns {string} Tipo capitalizado, ej: "Ingreso"
+ */
 export function labelTipo(tipo) {
   return tipo.charAt(0).toUpperCase() + tipo.slice(1);
 }
