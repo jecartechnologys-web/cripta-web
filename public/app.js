@@ -12,7 +12,8 @@ import {
   loadInversiones, totalInvertidoMes,
   loadPresupuestosActivos, crearPresupuesto, actualizarPresupuesto,
   registrarMovimiento, exportarCSV,
-  loadMetaData, promediarUltimos30Dias, resumenMensual
+  loadMetaData, promediarUltimos30Dias, resumenMensual,
+  loadMovimientosMes,
 } from './db.js';
 
 import {
@@ -74,6 +75,7 @@ function initApp() {
   document.getElementById('btn-cancelar-proyectar')?.addEventListener('click', () => hideModal('modal-proyectar'));
   document.getElementById('btn-cancelar-simular')?.addEventListener('click', () => hideModal('modal-simular'));
   document.getElementById('btn-cancelar-presupuesto')?.addEventListener('click', () => hideModal('modal-presupuesto'));
+  document.getElementById('btn-cerrar-lista')?.addEventListener('click', () => hideModal('modal-lista'));
 
   // ─── Modal: nuevo pasivo ────────────────────
   document.getElementById('btn-nuevo-pasivo')?.addEventListener('click', () => showModal('modal-pasivo'));
@@ -92,9 +94,10 @@ function initApp() {
   document.querySelectorAll('.stat-card').forEach(card => {
     card.addEventListener('click', () => {
       const stat = card.dataset.stat;
-      if (stat === 'pasivos') showMeta();
-      else if (stat === 'inversiones') switchTab('inversiones');
-      else if (stat === 'ingresos' || stat === 'gastos') showResumen();
+      if (stat === 'ingresos') showIngresosMes();
+      else if (stat === 'gastos') showGastosMes();
+      else if (stat === 'pasivos') showPasivosList();
+      else if (stat === 'inversiones') showInversionesMes();
     });
   });
 
@@ -939,6 +942,135 @@ async function showResumen() {
 
   document.getElementById('resumen-contenido').innerHTML = html;
   showModal('modal-resumen');
+}
+
+// ─── Stats: listas detalladas del mes ────────
+async function showIngresosMes() {
+  const items = await loadMovimientosMes(supabase, deviceId, 'ingresos');
+  const total = items.reduce((s, i) => s + i.monto, 0);
+  document.getElementById('modal-lista-titulo').textContent = '💰 Ingresos del Mes';
+
+  let html = `
+    <div style="text-align:center;padding:8px 0 16px;border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:12px;">
+      <div style="font-size:28px;font-weight:700;color:var(--green);">${formatSolesInt(total)}</div>
+      <div style="font-size:12px;color:var(--text-dim);">${items.length} ingresos · ${new Date().toLocaleDateString('es-PE', { month: 'long', year: 'numeric' })}</div>
+    </div>`;
+  if (items.length === 0) {
+    html += '<div class="list-empty">Sin ingresos este mes 📭</div>';
+  } else {
+    html += items.map(item => `
+      <div class="list-item" style="cursor:default;">
+        <div class="list-item-left">
+          <span class="list-item-desc">💰 ${esc(item.descripcion || 'Ingreso')}</span>
+          <span class="list-item-date">${esc(item.fecha)} · ${esc(item.categoria || 'general')}</span>
+        </div>
+        <div class="list-item-right ingreso">${formatSoles(item.monto)}</div>
+      </div>
+    `).join('');
+  }
+  document.getElementById('modal-lista-contenido').innerHTML = html;
+  showModal('modal-lista');
+}
+
+async function showGastosMes() {
+  const gastos = await loadMovimientosMes(supabase, deviceId, 'gastos');
+  const gasolina = await loadMovimientosMes(supabase, deviceId, 'gasolina');
+  const items = [...gastos, ...gasolina].sort((a, b) => b.fecha.localeCompare(a.fecha) || b.id - a.id);
+  const total = items.reduce((s, i) => s + i.monto, 0);
+
+  document.getElementById('modal-lista-titulo').textContent = '🔴 Gastos del Mes';
+  let html = `
+    <div style="text-align:center;padding:8px 0 16px;border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:12px;">
+      <div style="font-size:28px;font-weight:700;color:var(--red);">${formatSolesInt(total)}</div>
+      <div style="font-size:12px;color:var(--text-dim);">${items.length} gastos · ${new Date().toLocaleDateString('es-PE', { month: 'long', year: 'numeric' })}</div>
+    </div>`;
+  if (items.length === 0) {
+    html += '<div class="list-empty">Sin gastos este mes 🎉</div>';
+  } else {
+    html += items.map(item => {
+      const isGaso = item.categoria === 'gasolina' || (!item.categoria && item.descripcion === 'gasolina');
+      return `
+      <div class="list-item" style="cursor:default;">
+        <div class="list-item-left">
+          <span class="list-item-desc">${isGaso ? '⛽' : '🛒'} ${esc(item.descripcion || 'Gasto')}</span>
+          <span class="list-item-date">${esc(item.fecha)}${item.categoria ? ' · ' + esc(item.categoria) : ''}</span>
+        </div>
+        <div class="list-item-right gasto">${formatSoles(item.monto)}</div>
+      </div>`;
+    }).join('');
+  }
+  document.getElementById('modal-lista-contenido').innerHTML = html;
+  showModal('modal-lista');
+}
+
+async function showPasivosList() {
+  const pasivos = await loadPasivos(supabase, deviceId);
+  const activos = pasivos.filter(p => p.estado !== 'pagada');
+  const totalRestante = activos.reduce((s, p) => s + (p.monto_total - (p.monto_pagado || 0)), 0);
+
+  document.getElementById('modal-lista-titulo').textContent = '🌀 Mis Pasivos';
+  let html = `
+    <div style="text-align:center;padding:8px 0 16px;border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:12px;">
+      <div style="font-size:28px;font-weight:700;color:var(--debt);">${formatSolesInt(totalRestante)}</div>
+      <div style="font-size:12px;color:var(--text-dim);">${activos.length} pasivos activos</div>
+    </div>`;
+  if (pasivos.length === 0) {
+    html += '<div class="list-empty">Sin pasivos registrados 🌀</div>';
+  } else {
+    html += pasivos.map(p => {
+      const restante = p.monto_total - (p.monto_pagado || 0);
+      const pagado = p.monto_pagado || 0;
+      const pct = p.monto_total > 0 ? (pagado / p.monto_total) * 100 : 0;
+      const liberada = p.estado === 'pagada';
+      return `
+      <div class="list-item" style="cursor:default;flex-direction:column;align-items:stretch;padding:12px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+          <span style="font-weight:500;">${liberada ? '✅ ' : '🌀 '}${esc(p.nombre)}</span>
+          <span style="font-weight:600;color:${restante > 0 ? 'var(--debt)' : 'var(--green)'};">${formatSolesInt(restante)}</span>
+        </div>
+        ${!liberada ? `
+        <div class="deuda-progress" style="margin-bottom:4px;">
+          <div class="deuda-progress-fill" style="width:${Math.min(pct, 100)}%"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-dim);">
+          <span>${pct.toFixed(0)}% liberado</span>
+          <span>${p.tasa_interes > 0 ? p.tasa_interes + '% interés' : 'sin interés'}</span>
+          ${p.fecha_limite ? `<span>Vence ${esc(p.fecha_limite)}</span>` : ''}
+        </div>` : `
+        <div style="font-size:12px;color:var(--green);">✅ Liberado — ${formatSoles(p.monto_total)}</div>`}
+      </div>`;
+    }).join('');
+  }
+  document.getElementById('modal-lista-contenido').innerHTML = html;
+  showModal('modal-lista');
+}
+
+async function showInversionesMes() {
+  const items = await loadMovimientosMes(supabase, deviceId, 'gastos');
+  const inversiones = items.filter(i => i.categoria === 'inversion' || i.descripcion?.toLowerCase().includes('inversi'));
+  const total = inversiones.reduce((s, i) => s + i.monto, 0);
+
+  document.getElementById('modal-lista-titulo').textContent = '🌱 Inversiones del Mes';
+  let html = `
+    <div style="text-align:center;padding:8px 0 16px;border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:12px;">
+      <div style="font-size:28px;font-weight:700;color:var(--green);">${formatSolesInt(total)}</div>
+      <div style="font-size:12px;color:var(--text-dim);">${inversiones.length} inversiones este mes</div>
+    </div>`;
+  if (inversiones.length === 0) {
+    html += '<div class="list-empty">Sin inversiones este mes 🌱<br><span style="font-size:12px;">Registra desde Registrar → Inversión</span></div>';
+  } else {
+    html += inversiones.map(item => `
+      <div class="list-item" style="cursor:default;">
+        <div class="list-item-left">
+          <span class="list-item-desc">🌱 ${esc(item.descripcion || 'Inversión')}</span>
+          <span class="list-item-date">${esc(item.fecha)}</span>
+        </div>
+        <div class="list-item-right inversion">${formatSoles(item.monto)}</div>
+      </div>
+    `).join('');
+  }
+  document.getElementById('modal-lista-contenido').innerHTML = html;
+  showModal('modal-lista');
 }
 
 // ─── Presupuesto ─────────────────────────────

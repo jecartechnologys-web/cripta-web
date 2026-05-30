@@ -541,6 +541,38 @@ export async function resumenMensual(supabase, deviceId) {
   }
 }
 
+// ─── Movimientos del mes (lista detallada) ──
+export async function loadMovimientosMes(supabase, deviceId, tipo) {
+  try {
+    const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+    const today = new Date().toISOString().split('T')[0];
+    let table, montoField;
+    if (tipo === 'ingresos') { table = 'ingresos'; montoField = 'monto'; }
+    else if (tipo === 'gastos') { table = 'gastos'; montoField = 'monto'; }
+    else if (tipo === 'gasolina') { table = 'gasolina'; montoField = 'costo'; }
+    else return [];
+
+    const { data, error } = await supabase
+      .from(table)
+      .select('*')
+      .eq('user_id', deviceId)
+      .gte('fecha', monthStart)
+      .lte('fecha', today)
+      .order('fecha', { ascending: false });
+    if (error) throw error;
+    return (data || []).map(r => ({
+      id: r.id,
+      fecha: r.fecha,
+      descripcion: r.descripcion || tipo,
+      monto: Number(r[montoField]) || 0,
+      categoria: r.categoria || ''
+    }));
+  } catch (e) {
+    console.error('[CRIPTA] loadMovimientosMes error:', tipo, e);
+    return [];
+  }
+}
+
 // ─── Exportar CSV ─────────────────────────────
 export async function exportarCSV(supabase, deviceId) {
   try {
