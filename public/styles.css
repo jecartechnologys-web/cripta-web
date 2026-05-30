@@ -518,3 +518,156 @@ body {
   .stats-grid { grid-template-columns: repeat(4, 1fr); }
   .tools-grid { grid-template-columns: repeat(3, 1fr); }
 }
+
+/* ─── Confirm Dialog ────────────────────────── */
+.confirm-overlay {
+  align-items: center !important;
+  z-index: 250;
+}
+.confirm-overlay[aria-hidden='true'] { display: none; }
+.confirm-overlay[aria-hidden='false'] { display: flex; }
+
+.modal[aria-hidden='true'] { display: none; }
+.modal[aria-hidden='false'] { display: flex; }
+
+.confirm-dialog {
+  border-radius: var(--radius-xl) !important;
+  max-width: 320px !important;
+  padding: 28px 24px !important;
+  text-align: center;
+  animation: modalSlideUp 0.2s ease !important;
+}
+.confirm-message {
+  font-size: 15px;
+  color: var(--text-dim);
+  margin: 8px 0 4px;
+  line-height: 1.5;
+}
+.confirm-actions {
+  margin-top: 20px;
+  gap: 10px;
+}
+.confirm-actions .btn {
+  flex: 1;
+  min-width: 100px;
+}
+
+/* ─── Campo litros / km toggle ─────────────── */
+.campo-litros,
+.campo-km {
+  display: none;
+}
+
+/* ─── Loading Screen ────────────────────────── */
+.loading-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: var(--bg-deep);
+}
+.loading-content {
+  text-align: center;
+}
+.loading-logo {
+  animation: pulseLogo 1.5s ease-in-out infinite;
+}
+@keyframes pulseLogo {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+.loading-text {
+  margin-top: 12px;
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+/* ─── Modo Rápido ───────────────────────────── */
+.rapido-form {
+  display: flex;
+  gap: 8px;
+}
+.rapido-input {
+  flex: 1;
+  padding: 12px 14px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 15px;
+  font-family: var(--font);
+  outline: none;
+  transition: border-color 0.2s;
+}
+.rapido-input:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--brand-glow);
+}
+.btn-rapido-submit {
+  width: 48px;
+  font-size: 18px;
+  padding: 0;
+  flex-shrink: 0;
+}
+.rapido-preview {
+  font-size: 13px;
+  margin-top: 6px;
+  min-height: 20px;
+}
+
+/* ─── Nuevo Pasivo ───────────────────────────── */
+.btn-nuevo-pasivo {
+  margin-top: 10px;
+}
+
+/* ─── Inversiones ────────────────────────────── */
+.total-invertido-valor {
+  font-family: var(--font-mono);
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--green);
+  text-align: center;
+  margin: 8px 0;
+}
+.inversiones-subtitle {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.5;
+  margin-top: -10px;
+  margin-bottom: 14px;
+}
+
+/* ─── Pago Modal ────────────────────────────── */
+.pago-info {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--debt);
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+/* ─── Tall Modal ──────────────────────────────── */
+.modal-content-tall {
+  max-height: 92vh;
+}
+
+/* ─── Presupuestos activos ──────────────────── */
+.presupuestos-activos {
+  margin-top: 16px;
+}
+
+/* ─── Card Proximos ─────────────────────────── */
+.card-proximos {
+  margin-top: 12px;
+}
+
+/* ─── Clickable cursor ───────────────────────── */
+.clickable {
+  cursor: pointer;
+}
+
+/* ─── List item right colors ────────────────── */
+.list-item-right.ingreso { color: var(--green); }
+.list-item-right.gasto { color: var(--red); }
+.list-item-right.gasolina { color: var(--amber); }
+.list-item-right.inversion { color: var(--green); }

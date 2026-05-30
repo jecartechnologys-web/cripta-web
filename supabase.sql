@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS gasolina (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Deudas
+-- Pasivos (antes "Deudas")
 CREATE TABLE IF NOT EXISTS deudas (
   id BIGSERIAL PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS deudas (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Pagos de deudas
+-- Pagos de pasivos
 CREATE TABLE IF NOT EXISTS pagos_deuda (
   id BIGSERIAL PRIMARY KEY,
   deuda_id BIGINT NOT NULL REFERENCES deudas(id) ON DELETE CASCADE,
@@ -98,18 +98,28 @@ CREATE INDEX IF NOT EXISTS idx_gasolina_user_fecha ON gasolina(user_id, fecha);
 CREATE INDEX IF NOT EXISTS idx_deudas_user_estado ON deudas(user_id, estado);
 
 -- =============================================
--- RLS (Row Level Security) — deshabilitado para
--- device-based single-user app. Seguridad vía
--- CSP + anon key + sanitización frontend.
+-- RLS (Row Level Security) — modo open para
+-- device-based app. Seguridad vía device ID
+-- aleatorio + CSP headers + anon key pública.
 -- =============================================
-ALTER TABLE usuarios DISABLE ROW LEVEL SECURITY;
-ALTER TABLE ingresos DISABLE ROW LEVEL SECURITY;
-ALTER TABLE gastos DISABLE ROW LEVEL SECURITY;
-ALTER TABLE gasolina DISABLE ROW LEVEL SECURITY;
-ALTER TABLE deudas DISABLE ROW LEVEL SECURITY;
-ALTER TABLE pagos_deuda DISABLE ROW LEVEL SECURITY;
-ALTER TABLE metas DISABLE ROW LEVEL SECURITY;
-ALTER TABLE presupuestos DISABLE ROW LEVEL SECURITY;
+ALTER TABLE usuarios ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ingresos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE gastos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE gasolina ENABLE ROW LEVEL SECURITY;
+ALTER TABLE deudas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pagos_deuda ENABLE ROW LEVEL SECURITY;
+ALTER TABLE metas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE presupuestos ENABLE ROW LEVEL SECURITY;
+
+-- Políticas allow-all para anon key
+CREATE POLICY IF NOT EXISTS anon_all_usuarios ON usuarios FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY IF NOT EXISTS anon_all_ingresos ON ingresos FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY IF NOT EXISTS anon_all_gastos ON gastos FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY IF NOT EXISTS anon_all_gasolina ON gasolina FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY IF NOT EXISTS anon_all_deudas ON deudas FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY IF NOT EXISTS anon_all_pagos_deuda ON pagos_deuda FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY IF NOT EXISTS anon_all_metas ON metas FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY IF NOT EXISTS anon_all_presupuestos ON presupuestos FOR ALL TO anon USING (true) WITH CHECK (true);
 
 -- =============================================
 -- Funciones útiles

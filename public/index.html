@@ -12,21 +12,31 @@
 <body>
 
   <!-- Loading -->
-  <div id="loading-screen" class="screen active" style="display:flex;align-items:center;justify-content:center;min-height:100vh;">
-      <div style="text-align:center;">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom:12px;opacity:0.8;">
-          <rect width="24" height="24" rx="6" fill="url(#load_grad)"/>
-          <path d="M7 12h10M12 7v10" stroke="white" stroke-width="2" stroke-linecap="round"/>
-          <defs><linearGradient id="load_grad" x1="0" y1="0" x2="24" y2="24"><stop stop-color="#6366f1"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs>
-        </svg>
-        <p style="color:var(--text-dim);font-size:13px;font-weight:500;">Cargando CRIPTA…</p>
+  <div id="loading-screen" class="screen loading-screen">
+    <div class="loading-content">
+      <svg class="loading-logo" width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="24" height="24" rx="6" fill="url(#load_grad)"/>
+        <path d="M7 12h10M12 7v10" stroke="white" stroke-width="2" stroke-linecap="round"/>
+        <defs><linearGradient id="load_grad" x1="0" y1="0" x2="24" y2="24"><stop stop-color="#6366f1"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs>
+      </svg>
+      <p class="loading-text">Cargando CRIPTA…</p>
+    </div>
+  </div>
+
+  <!-- Confirm Dialog (reemplaza confirm() nativo) -->
+  <div id="confirm-overlay" class="modal confirm-overlay" aria-hidden="true">
+    <div class="modal-content confirm-dialog">
+      <h3 id="confirm-title">Confirmar</h3>
+      <p id="confirm-message" class="confirm-message"></p>
+      <div class="form-actions confirm-actions">
+        <button id="confirm-btn-no" class="btn btn-secondary">Cancelar</button>
+        <button id="confirm-btn-yes" class="btn btn-primary">Sí</button>
       </div>
+    </div>
   </div>
 
   <!-- Main App -->
   <div id="app-screen" class="screen">
-
-    <!-- Header -->
     <header class="header">
       <div class="header-left">
         <span class="logo-sm">
@@ -77,7 +87,7 @@
 
       <div class="card">
         <h3>Tendencia 7 días</h3>
-        <canvas id="chart-canvas" style="width:100%;height:110px;display:block;"></canvas>
+        <canvas id="chart-canvas" class="chart-canvas"></canvas>
       </div>
 
       <div class="card">
@@ -90,11 +100,11 @@
     <div id="tab-registrar" class="tab-content">
       <div class="card">
         <h3>⚡ Modo Rápido</h3>
-        <form id="form-rapido" style="display:flex;gap:8px;">
-          <input type="text" id="input-rapido" placeholder='Ej: "gaste 20 en gasolina"' style="flex:1;min-width:0;background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:var(--radius-sm);padding:12px 14px;color:var(--text);font-size:14px;font-family:var(--font);outline:none;" autocomplete="off">
-          <button type="submit" class="btn btn-primary" id="btn-rapido" style="padding:12px 18px;width:auto;">→</button>
+        <form id="form-rapido" class="rapido-form">
+          <input type="text" id="input-rapido" class="rapido-input" placeholder='Ej: "gaste 20 en gasolina"' autocomplete="off">
+          <button type="submit" class="btn btn-primary btn-rapido-submit">→</button>
         </form>
-        <div id="rapido-preview" style="font-size:12px;color:var(--text-dim);margin-top:6px;min-height:20px;"></div>
+        <div id="rapido-preview" class="rapido-preview"></div>
       </div>
 
       <div class="card">
@@ -106,24 +116,24 @@
           <button class="type-btn" data-type="gasolina">⛽ Gasolina</button>
         </div>
         <form id="form-movimiento">
-          <div class="form-group" id="campo-litros" style="display:none;">
-            <label>Litros</label>
+          <div class="form-group campo-litros" id="campo-litros">
+            <label for="input-litros">Litros</label>
             <input type="number" id="input-litros" step="0.1" placeholder="0.0">
           </div>
-          <div class="form-group" id="campo-km" style="display:none;">
-            <label>Km recorridos</label>
+          <div class="form-group campo-km" id="campo-km">
+            <label for="input-km">Km recorridos</label>
             <input type="number" id="input-km" step="0.1" placeholder="0.0">
           </div>
           <div class="form-group">
-            <label>Monto (S/)</label>
+            <label for="input-monto">Monto (S/)</label>
             <input type="number" id="input-monto" step="0.01" placeholder="0.00" required min="0.01">
           </div>
           <div class="form-group">
-            <label>Descripción</label>
+            <label for="input-descripcion">Descripción</label>
             <input type="text" id="input-descripcion" placeholder="Ej: Plan celular, Comida semanal" maxlength="200">
           </div>
           <div class="form-group">
-            <label>Categoría</label>
+            <label for="input-categoria">Categoría</label>
             <select id="input-categoria">
               <option value="general">General</option>
               <option value="delivery">Delivery</option>
@@ -139,33 +149,33 @@
       </div>
     </div>
 
-    <!-- Pasivos Tab (antes Deudas) -->
+    <!-- Pasivos Tab -->
     <div id="tab-pasivos" class="tab-content">
       <div class="card">
         <h3>🌀 Mis Pasivos</h3>
         <div id="pasivos-list" class="list"></div>
-        <button id="btn-nuevo-pasivo" class="btn btn-secondary btn-block" style="margin-top:12px;">+ Nuevo Pasivo</button>
+        <button id="btn-nuevo-pasivo" class="btn btn-secondary btn-block btn-nuevo-pasivo">+ Nuevo Pasivo</button>
       </div>
 
       <!-- Modal Nuevo Pasivo -->
-      <div id="modal-pasivo" class="modal" style="display:none;">
+      <div id="modal-pasivo" class="modal" aria-hidden="true">
         <div class="modal-content">
           <h3>Agregar Pasivo</h3>
           <form id="form-pasivo">
             <div class="form-group">
-              <label>Nombre</label>
+              <label for="pasivo-nombre">Nombre</label>
               <input type="text" id="pasivo-nombre" placeholder="Ej: Préstamo Juan" required maxlength="100">
             </div>
             <div class="form-group">
-              <label>Monto total (S/)</label>
+              <label for="pasivo-monto">Monto total (S/)</label>
               <input type="number" id="pasivo-monto" step="0.01" placeholder="0.00" required min="0.01">
             </div>
             <div class="form-group">
-              <label>Interés mensual (%)</label>
+              <label for="pasivo-interes">Interés mensual (%)</label>
               <input type="number" id="pasivo-interes" step="0.1" value="0" min="0" max="100">
             </div>
             <div class="form-group">
-              <label>Fecha límite</label>
+              <label for="pasivo-fecha">Fecha límite</label>
               <input type="date" id="pasivo-fecha">
             </div>
             <div class="form-actions">
@@ -176,7 +186,7 @@
         </div>
       </div>
 
-      <div class="card" style="margin-top:8px;">
+      <div class="card card-proximos">
         <h3>🗓️ Próximos Pagos</h3>
         <div id="proximos-list" class="list"></div>
       </div>
@@ -186,12 +196,12 @@
     <div id="tab-inversiones" class="tab-content">
       <div class="card">
         <h3>🌱 Mis Inversiones Fijas</h3>
-        <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">Gastos que son inversiones en ti: plan celular, cuota celular, comida semanal, cursos — todo lo que te impulsa.</p>
+        <p class="inversiones-subtitle">Gastos que son inversiones en ti: plan celular, cuota celular, comida semanal, cursos — todo lo que te impulsa.</p>
         <div id="inversiones-list" class="list"></div>
       </div>
-      <div class="card" style="margin-top:8px;">
+      <div class="card card-total-invertido">
         <h3>📊 Total Invertido este mes</h3>
-        <div style="font-size:32px;font-weight:700;color:var(--green);text-align:center;padding:12px 0;" id="total-invertido-mes">S/ 0</div>
+        <div id="total-invertido-mes" class="total-invertido-valor">S/ 0</div>
       </div>
     </div>
 
@@ -232,20 +242,20 @@
       </div>
 
       <!-- Modal Meta -->
-      <div id="modal-meta" class="modal" style="display:none;">
+      <div id="modal-meta" class="modal" aria-hidden="true">
         <div class="modal-content">
           <h3>🎯 Meta Diaria</h3>
           <div id="meta-resultado"></div>
-          <button class="btn btn-primary btn-block" id="btn-cerrar-meta" style="margin-top:12px;">Cerrar</button>
+          <button class="btn btn-primary btn-block" id="btn-cerrar-meta">Cerrar</button>
         </div>
       </div>
 
       <!-- Modal Proyectar -->
-      <div id="modal-proyectar" class="modal" style="display:none;">
+      <div id="modal-proyectar" class="modal" aria-hidden="true">
         <div class="modal-content">
           <h3>📈 Proyección</h3>
           <div class="form-group">
-            <label>Días a proyectar</label>
+            <label for="proyectar-dias">Días a proyectar</label>
             <input type="number" id="proyectar-dias" value="7" min="1" max="90">
           </div>
           <div id="proyectar-resultado"></div>
@@ -257,15 +267,15 @@
       </div>
 
       <!-- Modal Simular -->
-      <div id="modal-simular" class="modal" style="display:none;">
+      <div id="modal-simular" class="modal" aria-hidden="true">
         <div class="modal-content">
           <h3>🧪 Simular Escenario</h3>
           <div class="form-group">
-            <label>Ingreso adicional (S/)</label>
+            <label for="simular-ingreso">Ingreso adicional (S/)</label>
             <input type="number" id="simular-ingreso" step="0.01" value="0">
           </div>
           <div class="form-group">
-            <label>Gasto adicional (S/)</label>
+            <label for="simular-gasto">Gasto adicional (S/)</label>
             <input type="number" id="simular-gasto" step="0.01" value="0">
           </div>
           <div id="simular-resultado"></div>
@@ -277,12 +287,12 @@
       </div>
 
       <!-- Modal Presupuesto -->
-      <div id="modal-presupuesto" class="modal" style="display:none;">
+      <div id="modal-presupuesto" class="modal" aria-hidden="true">
         <div class="modal-content">
-          <h3>📋 Crear Presupuesto Semanal</h3>
+          <h3>📋 Presupuesto Semanal</h3>
           <form id="form-presupuesto">
             <div class="form-group">
-              <label>Categoría</label>
+              <label for="presupuesto-categoria">Categoría</label>
               <select id="presupuesto-categoria">
                 <option value="comida">Comida</option>
                 <option value="transporte">Transporte</option>
@@ -293,7 +303,7 @@
               </select>
             </div>
             <div class="form-group">
-              <label>Límite semanal (S/)</label>
+              <label for="presupuesto-monto">Límite semanal (S/)</label>
               <input type="number" id="presupuesto-monto" step="0.01" required min="0.01">
             </div>
             <div class="form-actions">
@@ -301,35 +311,35 @@
               <button type="submit" class="btn btn-primary">Crear</button>
             </div>
           </form>
-          <div id="presupuestos-activos" style="margin-top:16px;"></div>
+          <div id="presupuestos-activos" class="presupuestos-activos"></div>
         </div>
       </div>
 
       <!-- Modal Plan Salida -->
-      <div id="modal-salida" class="modal" style="display:none;">
+      <div id="modal-salida" class="modal" aria-hidden="true">
         <div class="modal-content">
           <h3>🚀 Plan de Salida</h3>
           <div id="salida-resultado"></div>
-          <button class="btn btn-primary btn-block" id="btn-cerrar-salida" style="margin-top:12px;">Cerrar</button>
+          <button class="btn btn-primary btn-block" id="btn-cerrar-salida">Cerrar</button>
         </div>
       </div>
 
       <!-- Modal Resumen -->
-      <div id="modal-resumen" class="modal" style="display:none;">
+      <div id="modal-resumen" class="modal" aria-hidden="true">
         <div class="modal-content">
           <h3>📊 Resumen Financiero</h3>
-          <div id="resumen-contenido" style="padding:8px 0;"></div>
-          <button class="btn btn-primary btn-block" id="btn-cerrar-resumen" style="margin-top:12px;">Cerrar</button>
+          <div id="resumen-contenido"></div>
+          <button class="btn btn-primary btn-block" id="btn-cerrar-resumen">Cerrar</button>
         </div>
       </div>
 
       <!-- Modal Pago Pasivo -->
-      <div id="modal-pago" class="modal" style="display:none;">
+      <div id="modal-pago" class="modal" aria-hidden="true">
         <div class="modal-content">
           <h3>💳 Pagar Pasivo</h3>
-          <p id="pago-info" style="color:var(--text-dim);margin-bottom:16px;"></p>
+          <p id="pago-info" class="pago-info"></p>
           <div class="form-group">
-            <label>Monto a pagar (S/)</label>
+            <label for="pago-monto">Monto a pagar (S/)</label>
             <input type="number" id="pago-monto" step="0.01" min="0.01" required>
           </div>
           <div class="form-actions">
@@ -340,19 +350,19 @@
       </div>
 
       <!-- Modal Detalle Pasivo -->
-      <div id="modal-detalle-pasivo" class="modal" style="display:none;">
+      <div id="modal-detalle-pasivo" class="modal" aria-hidden="true">
         <div class="modal-content">
           <h3 id="detalle-titulo">🌀 Detalle del Pasivo</h3>
-          <div id="detalle-contenido" style="padding:8px 0;"></div>
-          <button class="btn btn-primary btn-block" id="btn-cerrar-detalle" style="margin-top:12px;">Cerrar</button>
+          <div id="detalle-contenido"></div>
+          <button class="btn btn-primary btn-block" id="btn-cerrar-detalle">Cerrar</button>
         </div>
       </div>
 
       <!-- Modal Panel Pasivos -->
-      <div id="modal-pasivos-panel" class="modal" style="display:none;">
-        <div class="modal-content" style="max-height:85vh;overflow-y:auto;">
+      <div id="modal-pasivos-panel" class="modal" aria-hidden="true">
+        <div class="modal-content modal-content-tall">
           <div id="pasivos-panel-contenido"></div>
-          <button class="btn btn-primary btn-block" id="btn-cerrar-pasivos-panel" style="margin-top:12px;">Cerrar</button>
+          <button class="btn btn-primary btn-block" id="btn-cerrar-pasivos-panel">Cerrar</button>
         </div>
       </div>
     </div>
@@ -365,14 +375,14 @@
       <button class="tab" data-tab="inversiones" data-label="Inversiones">🌱</button>
       <button class="tab" data-tab="herramientas" data-label="Tools">🔮</button>
     </nav>
-
   </div>
 
   <!-- Toast -->
   <div id="toast" class="toast"></div>
 
-  <!-- Supabase CDN -->
+  <!-- Supabase SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js"></script>
+  <!-- App modules (ES modules, deferred) -->
+  <script type="module" src="app.js"></script>
 </body>
 </html>

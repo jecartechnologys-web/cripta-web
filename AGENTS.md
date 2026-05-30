@@ -16,9 +16,12 @@ Lee `.specify/specs/PLAN.md` — arquitectura, DB, seguridad y deployment.
 ```
 cripta-web/
 ├── public/              # Frontend estático (HTML/CSS/JS)
-│   ├── index.html       # UI principal
-│   ├── app.js           # Lógica (705 líneas, Supabase + UI)
-│   ├── styles.css       # Estilos dark
+│   ├── index.html       # UI principal (ES modules)
+│   ├── app.js           # Entry point — orquesta módulos (995 líneas)
+│   ├── db.js            # Todas las queries a Supabase + helpers
+│   ├── ui.js            # Modales, toast, confirm dialog, sanitización
+│   ├── parser.js        # Modo Rápido NLP + categorías centralizadas
+│   ├── styles.css       # Estilos dark (glassmorphism)
 │   └── manifest.json    # PWA manifest
 ├── supabase.sql         # Schema SQL (8 tablas + RLS)
 ├── vercel.json          # Config deploy (headers CSP + rewrites)
