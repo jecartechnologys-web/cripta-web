@@ -100,6 +100,14 @@ Stack: HTML+CSS+JS vanilla, ES Modules, Supabase.
         <canvas id="chart-canvas" class="chart-canvas"></canvas>
       </div>
 
+      <!-- Metas de Ahorro Dashboard -->
+      <div class="card" id="metas-dashboard-card">
+        <h3>🎯 Metas de Ahorro</h3>
+        <div id="metas-dashboard-list"></div>
+        <div id="metas-dashboard-empty" class="list-empty" style="display:none;">Sin metas aún 🎯</div>
+        <button class="btn btn-outline btn-block" id="btn-metas-ver-todas" style="margin-top:10px;">Ver todas</button>
+      </div>
+
       <div class="card">
         <h3>Últimos movimientos</h3>
         <div id="historial-list" class="list"></div>
@@ -261,6 +269,61 @@ Stack: HTML+CSS+JS vanilla, ES Modules, Supabase.
         <h3>🎯 Meta Diaria</h3>
         <div id="meta-resultado"></div>
         <button class="btn btn-primary btn-block" id="btn-cerrar-meta">Cerrar</button>
+      </div>
+    </div>
+
+    <!-- Modal Metas de Ahorro -->
+    <div id="modal-metas" class="modal" aria-hidden="true">
+      <div class="modal-content modal-content-tall">
+        <h3>🎯 Metas de Ahorro</h3>
+        <div id="metas-listado"></div>
+        <div class="form-actions" style="margin-top:12px;">
+          <button class="btn btn-primary" id="btn-meta-nueva">+ Nueva Meta</button>
+          <button class="btn btn-secondary" id="btn-cerrar-metas">Cerrar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Nueva Meta -->
+    <div id="modal-nueva-meta" class="modal" aria-hidden="true">
+      <div class="modal-content">
+        <h3>🎯 Nueva Meta de Ahorro</h3>
+        <form id="form-nueva-meta">
+          <div class="form-group">
+            <label for="meta-nombre">Nombre</label>
+            <input type="text" id="meta-nombre" placeholder="Ej: Curso Excel, Capacitación" required maxlength="100">
+          </div>
+          <div class="form-group">
+            <label for="meta-monto">Monto objetivo (S/)</label>
+            <input type="number" id="meta-monto" step="0.01" placeholder="500" required min="1">
+          </div>
+          <div class="form-group">
+            <label for="meta-fecha">Fecha límite (opcional)</label>
+            <input type="date" id="meta-fecha">
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary" id="btn-cancelar-nueva-meta">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Crear Meta</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal Abonar a Meta -->
+    <div id="modal-abonar-meta" class="modal" aria-hidden="true">
+      <div class="modal-content">
+        <h3 id="abonar-titulo">💰 Abonar a Meta</h3>
+        <p id="abonar-info" style="font-size:14px;color:var(--text-dim);margin-bottom:12px;"></p>
+        <form id="form-abonar-meta">
+          <div class="form-group">
+            <label for="abonar-monto">¿Cuánto vas a destinar? (S/)</label>
+            <input type="number" id="abonar-monto" step="0.01" placeholder="10" required min="0.01">
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary" id="btn-cancelar-abonar">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Abonar 💰</button>
+          </div>
+        </form>
       </div>
     </div>
 

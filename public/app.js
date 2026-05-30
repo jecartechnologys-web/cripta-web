@@ -14,6 +14,7 @@ import {
   registrarMovimiento, exportarCSV,
   loadMetaData, promediarUltimos30Dias, resumenMensual,
   loadMovimientosMes,
+  loadMetas, crearMeta, abonarMeta, completarMeta, eliminarMeta,
 } from './db.js';
 
 import {
@@ -35,6 +36,7 @@ let pasivoPagarId = null;
 let pasivoPagarRestante = 0;
 let rapidoProcessing = false;
 let movimientoProcessing = false;
+let currentAbonarMetaId = null;
 
 // =============================================
 // INIT
@@ -110,6 +112,15 @@ function initApp() {
       else if (stat === 'inversiones') showInversionesMes();
     });
   });
+
+  // ─── Metas de Ahorro ─────────────────────────
+  document.getElementById('btn-metas-ver-todas')?.addEventListener('click', showMetasList);
+  document.getElementById('btn-cerrar-metas')?.addEventListener('click', () => hideModal('modal-metas'));
+  document.getElementById('btn-meta-nueva')?.addEventListener('click', () => showModal('modal-nueva-meta'));
+  document.getElementById('btn-cancelar-nueva-meta')?.addEventListener('click', () => hideModal('modal-nueva-meta'));
+  document.getElementById('form-nueva-meta')?.addEventListener('submit', handleCrearMeta);
+  document.getElementById('btn-cancelar-abonar')?.addEventListener('click', () => hideModal('modal-abonar-meta'));
+  document.getElementById('form-abonar-meta')?.addEventListener('submit', handleConfirmAbonar);
 
   // ─── Cargar datos iniciales ────────────────
   loadDashboard();
@@ -196,6 +207,7 @@ async function loadDashboard() {
 
   await loadHistorialTab();
   drawChart7d();
+  loadMetasDashboard();
 }
 
 // ─── Historial ────────────────────────────────
@@ -1404,6 +1416,265 @@ async function handlePresupuesto(e) {
     showPresupuesto();
   } catch (e) {
     showToast('Error de conexión', 'error');
+  }
+}
+
+// =============================================
+// METAS DE AHORRO
+// =============================================
+
+/**
+ * Carga y muestra las metas activas en el dashboard.
+ * Muestra max 4 metas con barras de progreso.
+ * @async
+ * @returns {Promise<void>}
+ */
+async function loadMetasDashboard() {
+  try {
+    const metas = await loadMetas(supabase, deviceId);
+    const container = document.getElementById('metas-dashboard-list');
+    const empty = document.getElementById('metas-dashboard-empty');
+    if (!container) return;
+
+    if (metas.length === 0) {
+      container.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+
+    // Mostrar solo activas (no completadas), max 4
+    const activas = metas.filter(m => !m.completada).slice(0, 4);
+    if (activas.length === 0) {
+      container.innerHTML = '<div style="padding:8px 0;color:var(--green);font-size:13px;">✅ Todas las metas cumplidas!</div>';
+      return;
+    }
+
+    container.innerHTML = activas.map(m => {
+      const pct = m.monto_objetivo > 0 ? Math.min((m.monto_ahorrado / m.monto_objetivo) * 100, 100) : 0;
+      return `
+        <div class="meta-mini" data-id="${m.id}">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+            <span style="font-weight:500;font-size:13px;">${esc(m.nombre || 'Meta')}</span>
+            <span style="font-size:11px;color:var(--accent);">${formatSolesInt(m.monto_ahorrado)} / ${formatSolesInt(m.monto_objetivo)}</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" style="width:${pct}%;"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;margin-top:3px;">
+            <span style="color:var(--text-dim);">${pct.toFixed(0)}%</span>
+            <button class="btn-abonar-meta" data-id="${m.id}" style="background:none;border:none;color:var(--accent);font-size:11px;cursor:pointer;padding:0;">+ Abonar</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Event listeners para abonar desde dashboard
+    container.querySelectorAll('.btn-abonar-meta').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        handleAbonarMeta(parseInt(btn.dataset.id));
+      });
+    });
+  } catch (e) {
+    console.error('[CRIPTA] loadMetasDashboard error:', e);
+  }
+}
+
+/**
+ * Abre el modal con la lista completa de metas.
+ * @async
+ * @returns {Promise<void>}
+ */
+async function showMetasList() {
+  try {
+    const metas = await loadMetas(supabase, deviceId);
+    const container = document.getElementById('metas-listado');
+
+    if (metas.length === 0) {
+      container.innerHTML = '<div class="list-empty">No tienes metas aún 🎯<br><span style="font-size:13px;color:var(--text-dim);">Crea una para empezar a ahorrar</span></div>';
+    } else {
+      container.innerHTML = metas.map(m => {
+        const pct = m.monto_objetivo > 0 ? Math.min((m.monto_ahorrado / m.monto_objetivo) * 100, 100) : 0;
+        const completada = m.completada;
+        const fechaLimite = m.fecha ? ` · ${m.fecha}` : '';
+        return `
+          <div class="meta-card ${completada ? 'meta-completada' : ''}" data-id="${m.id}">
+            <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:6px;">
+              <div>
+                <span style="font-weight:600;font-size:14px;">${completada ? '✅ ' : '🎯 '}${esc(m.nombre || 'Meta')}</span>
+                ${fechaLimite ? `<span style="font-size:11px;color:var(--text-dim);margin-left:6px;">${fechaLimite}</span>` : ''}
+              </div>
+              <span style="font-weight:600;font-size:14px;color:${completada ? 'var(--green)' : 'var(--accent)'};">${formatSolesInt(m.monto_ahorrado)} / ${formatSolesInt(m.monto_objetivo)}</span>
+            </div>
+            ${!completada ? `
+              <div class="progress-bar" style="margin-bottom:4px;">
+                <div class="progress-fill" style="width:${pct}%;"></div>
+              </div>
+            ` : ''}
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
+              <span style="font-size:12px;color:${completada ? 'var(--green)' : 'var(--text-dim)'};">${completada ? 'Completada 🎉' : `${pct.toFixed(0)}%`}</span>
+              <div style="display:flex;gap:8px;">
+                ${!completada ? `<button class="btn-accion-meta" data-action="abonar" data-id="${m.id}">💰 Abonar</button>` : ''}
+                ${!completada ? `<button class="btn-accion-meta" data-action="completar" data-id="${m.id}">✓ Completar</button>` : ''}
+                <button class="btn-accion-meta btn-accion-peligro" data-action="eliminar" data-id="${m.id}">✕</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Event listeners
+      container.querySelectorAll('.btn-accion-meta').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const id = parseInt(btn.dataset.id);
+          const action = btn.dataset.action;
+          if (action === 'abonar') handleAbonarMeta(id);
+          else if (action === 'completar') handleCompletarMeta(id);
+          else if (action === 'eliminar') handleEliminarMeta(id);
+        });
+      });
+    }
+
+    showModal('modal-metas');
+  } catch (e) {
+    console.error('[CRIPTA] showMetasList error:', e);
+    showToast('Error al cargar metas', 'error');
+  }
+}
+
+/**
+ * Maneja la creación de una nueva meta.
+ * @async
+ * @param {Event} e - Evento de submit
+ * @returns {Promise<void>}
+ */
+async function handleCrearMeta(e) {
+  e.preventDefault();
+  const nombre = document.getElementById('meta-nombre').value.trim();
+  const monto = parseFloat(document.getElementById('meta-monto').value);
+  const fecha = document.getElementById('meta-fecha').value || null;
+
+  if (!nombre) {
+    showToast('Escribe un nombre para la meta', 'error');
+    return;
+  }
+  if (isNaN(monto) || monto <= 0) {
+    showToast('Monto inválido', 'error');
+    return;
+  }
+
+  try {
+    await crearMeta(supabase, deviceId, { nombre, monto_objetivo: monto, fecha });
+    showToast('Meta creada 🎯', 'success');
+    hideModal('modal-nueva-meta');
+    document.getElementById('form-nueva-meta').reset();
+    loadMetasDashboard();
+    showMetasList();
+  } catch (e) {
+    showToast('Error al crear meta', 'error');
+  }
+}
+
+/**
+ * Abre el modal para abonar a una meta.
+ * @param {number} id - ID de la meta
+ */
+async function handleAbonarMeta(id) {
+  currentAbonarMetaId = id;
+  try {
+    const metas = await loadMetas(supabase, deviceId);
+    const meta = metas.find(m => m.id === id);
+    if (!meta) { showToast('Meta no encontrada', 'error'); return; }
+
+    document.getElementById('abonar-titulo').textContent = `💰 ${esc(meta.nombre || 'Meta')}`;
+    document.getElementById('abonar-info').textContent =
+      `Llevas ${formatSolesInt(meta.monto_ahorrado)} de ${formatSolesInt(meta.monto_objetivo)} — Falta ${formatSolesInt(meta.monto_objetivo - meta.monto_ahorrado)}`;
+    document.getElementById('abonar-monto').value = '';
+    document.getElementById('abonar-monto').focus();
+    showModal('modal-abonar-meta');
+  } catch (e) {
+    showToast('Error al cargar meta', 'error');
+  }
+}
+
+/**
+ * Confirma el abono a una meta.
+ * @async
+ * @param {Event} e - Evento de submit
+ * @returns {Promise<void>}
+ */
+async function handleConfirmAbonar(e) {
+  e.preventDefault();
+  const id = currentAbonarMetaId;
+  const monto = parseFloat(document.getElementById('abonar-monto').value);
+
+  if (isNaN(monto) || monto <= 0) {
+    showToast('Monto inválido', 'error');
+    return;
+  }
+
+  try {
+    const completada = await abonarMeta(supabase, deviceId, id, monto);
+    hideModal('modal-abonar-meta');
+    if (completada) {
+      showToast('🎉 Meta cumplida! 🔥', 'success');
+    } else {
+      showToast(`💰 S/ ${monto.toFixed(2)} destinados a la meta`, 'success');
+    }
+    loadMetasDashboard();
+    showMetasList();
+  } catch (e) {
+    showToast('Error al abonar', 'error');
+  }
+}
+
+/**
+ * Marca una meta como completada manualmente.
+ * @async
+ * @param {number} id - ID de la meta
+ */
+async function handleCompletarMeta(id) {
+  const confirmed = await showConfirm({
+    title: 'Completar meta',
+    message: '¿Marcar esta meta como cumplida?',
+    confirmText: 'Completar',
+    cancelText: 'Cancelar'
+  });
+  if (!confirmed) return;
+
+  try {
+    await completarMeta(supabase, deviceId, id);
+    showToast('Meta completada 🎉', 'success');
+    loadMetasDashboard();
+    showMetasList();
+  } catch (e) {
+    showToast('Error al completar meta', 'error');
+  }
+}
+
+/**
+ * Elimina una meta después de confirmar.
+ * @async
+ * @param {number} id - ID de la meta
+ */
+async function handleEliminarMeta(id) {
+  const confirmed = await showConfirm({
+    title: 'Eliminar meta',
+    message: '¿Eliminar esta meta?',
+    confirmText: 'Eliminar',
+    cancelText: 'Cancelar',
+    danger: true
+  });
+  if (!confirmed) return;
+
+  try {
+    await eliminarMeta(supabase, deviceId, id);
+    showToast('Meta eliminada', 'success');
+    loadMetasDashboard();
+    showMetasList();
+  } catch (e) {
+    showToast('Error al eliminar meta', 'error');
   }
 }
 

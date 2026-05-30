@@ -696,3 +696,62 @@ body {
 .list-item-right.gasto { color: var(--red); }
 .list-item-right.gasolina { color: var(--amber); }
 .list-item-right.inversion { color: var(--green); }
+
+/* ─── Metas de Ahorro ────────────────────────── */
+
+/* Mini meta card en dashboard */
+.meta-mini {
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.meta-mini:last-child {
+  border-bottom: none;
+}
+
+/* Barra de progreso genérica */
+.progress-bar {
+  height: 6px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), #8b5cf6);
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+/* Meta card en listado modal */
+.meta-card {
+  background: var(--bg-input);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+.meta-card.meta-completada {
+  opacity: 0.75;
+  border-left: 3px solid var(--green);
+}
+
+/* Botones de acción en meta */
+.btn-accion-meta {
+  background: rgba(255,255,255,0.08);
+  border: none;
+  color: var(--text);
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-accion-meta:hover {
+  background: rgba(255,255,255,0.15);
+}
+.btn-accion-peligro {
+  color: var(--red);
+  font-weight: 600;
+}
+.btn-accion-peligro:hover {
+  background: rgba(255,70,70,0.15);
+}

@@ -943,3 +943,146 @@ export async function exportarCSV(supabase, deviceId) {
     throw e;
   }
 }
+
+// ─── Metas de Ahorro ───────────────────────────
+
+/**
+ * Obtiene todas las metas de ahorro del usuario.
+ * @async
+ * @param {import('@supabase/supabase-js').SupabaseClient} supabase
+ * @param {string} deviceId - ID del dispositivo
+ * @returns {Promise<Array<{id: number, nombre: string, monto_objetivo: number, monto_ahorrado: number, fecha: string, completada: boolean}>>}
+ */
+export async function loadMetas(supabase, deviceId) {
+  try {
+    const { data } = await supabase
+      .from('metas')
+      .select('*')
+      .eq('user_id', deviceId)
+      .order('created_at', { ascending: false });
+    return data || [];
+  } catch (e) {
+    console.error('[CRIPTA] loadMetas error:', e);
+    return [];
+  }
+}
+
+/**
+ * Crea una nueva meta de ahorro.
+ * @async
+ * @param {import('@supabase/supabase-js').SupabaseClient} supabase
+ * @param {string} deviceId - ID del dispositivo
+ * @param {{nombre: string, monto_objetivo: number, fecha?: string}} meta - Datos de la meta
+ * @returns {Promise<boolean>} true si se creó correctamente
+ */
+export async function crearMeta(supabase, deviceId, meta) {
+  try {
+    const { error } = await supabase.from('metas').insert({
+      user_id: deviceId,
+      nombre: meta.nombre || 'Meta',
+      monto_objetivo: meta.monto_objetivo,
+      fecha: meta.fecha || null,
+      monto_ahorrado: 0,
+      completada: false
+    });
+    if (error) throw error;
+    return true;
+  } catch (e) {
+    console.error('[CRIPTA] crearMeta error:', e);
+    throw e;
+  }
+}
+
+/**
+ * Abona un monto a una meta de ahorro (incrementa monto_ahorrado).
+ * @async
+ * @param {import('@supabase/supabase-js').SupabaseClient} supabase
+ * @param {string} deviceId - ID del dispositivo
+ * @param {number} id - ID de la meta
+ * @param {number} monto - Monto a abonar
+ * @returns {Promise<boolean>} true si se actualizó correctamente
+ */
+export async function abonarMeta(supabase, deviceId, id, monto) {
+  try {
+    // Obtener monto actual
+    const { data } = await supabase
+      .from('metas')
+      .select('monto_ahorrado, monto_objetivo')
+      .eq('id', id)
+      .eq('user_id', deviceId)
+      .single();
+
+    if (!data) throw new Error('Meta no encontrada');
+
+    const nuevoAhorrado = (data.monto_ahorrado || 0) + monto;
+    const completada = nuevoAhorrado >= data.monto_objetivo;
+
+    const { error } = await supabase
+      .from('metas')
+      .update({ monto_ahorrado: nuevoAhorrado, completada })
+      .eq('id', id)
+      .eq('user_id', deviceId);
+
+    if (error) throw error;
+    return completada;
+  } catch (e) {
+    console.error('[CRIPTA] abonarMeta error:', e);
+    throw e;
+  }
+}
+
+/**
+ * Marca una meta como completada manualmente.
+ * @async
+ * @param {import('@supabase/supabase-js').SupabaseClient} supabase
+ * @param {string} deviceId - ID del dispositivo
+ * @param {number} id - ID de la meta
+ * @returns {Promise<boolean>}
+ */
+export async function completarMeta(supabase, deviceId, id) {
+  try {
+    // Actualizar monto_ahorrado al objetivo y marcar completada
+    const { data } = await supabase
+      .from('metas')
+      .select('monto_objetivo')
+      .eq('id', id)
+      .eq('user_id', deviceId)
+      .single();
+
+    if (!data) throw new Error('Meta no encontrada');
+
+    const { error } = await supabase
+      .from('metas')
+      .update({ completada: true, monto_ahorrado: data.monto_objetivo })
+      .eq('id', id)
+      .eq('user_id', deviceId);
+    if (error) throw error;
+    return true;
+  } catch (e) {
+    console.error('[CRIPTA] completarMeta error:', e);
+    throw e;
+  }
+}
+
+/**
+ * Elimina una meta de ahorro.
+ * @async
+ * @param {import('@supabase/supabase-js').SupabaseClient} supabase
+ * @param {string} deviceId - ID del dispositivo
+ * @param {number} id - ID de la meta
+ * @returns {Promise<boolean>}
+ */
+export async function eliminarMeta(supabase, deviceId, id) {
+  try {
+    const { error } = await supabase
+      .from('metas')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', deviceId);
+    if (error) throw error;
+    return true;
+  } catch (e) {
+    console.error('[CRIPTA] eliminarMeta error:', e);
+    throw e;
+  }
+}
