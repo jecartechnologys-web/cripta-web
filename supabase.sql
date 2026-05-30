@@ -67,11 +67,13 @@ CREATE TABLE IF NOT EXISTS pagos_deuda (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Metas diarias
+-- Metas de ahorro (Fase 2: +nombre, monto_ahorrado)
 CREATE TABLE IF NOT EXISTS metas (
   id BIGSERIAL PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+  nombre TEXT DEFAULT 'Mi meta',
   monto_objetivo NUMERIC NOT NULL,
+  monto_ahorrado NUMERIC DEFAULT 0,
   fecha DATE DEFAULT CURRENT_DATE,
   completada BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW()
