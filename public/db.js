@@ -71,28 +71,14 @@ export function generateUUID() {
 // ─── Device ID ────────────────────────────────
 
 /**
- * Obtiene o crea el identificador único del dispositivo.
- * Primero revisa el parámetro `device_id` en la URL; si es válido, lo guarda en localStorage.
- * Si no existe en localStorage, genera uno nuevo con `generateUUID()`.
- * Limpia el parámetro de la URL después de usarlo para evitar re-lectura.
+ * App personal de un solo usuario.
+ * Retorna siempre el mismo user_id para que cualquier dispositivo
+ * vea los mismos datos. Sin login, sin localStorage, sin URL params.
  *
- * @returns {string} ID único del dispositivo
+ * @returns {string} ID fijo del usuario
  */
 export function getDeviceId() {
-  const urlParams = new URLSearchParams(window.location.search);
-  const urlId = urlParams.get('device_id');
-  const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-  if (urlId && uuidRe.test(urlId)) {
-    localStorage.setItem(CONFIG.DEVICE_ID_KEY, urlId);
-    window.history.replaceState({}, document.title, window.location.pathname);
-    return urlId;
-  }
-  let id = localStorage.getItem(CONFIG.DEVICE_ID_KEY);
-  if (!id || !uuidRe.test(id)) {
-    id = generateUUID();
-    localStorage.setItem(CONFIG.DEVICE_ID_KEY, id);
-  }
-  return id;
+  return 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
 }
 
 // ─── Ensure user exists ───────────────────────
@@ -108,7 +94,7 @@ export function getDeviceId() {
 export async function ensureUser(supabase, id) {
   try {
     const { error } = await supabase.from('usuarios').upsert(
-      { id, nombre: 'device_' + id.substr(0, 8) },
+      { id, nombre: 'Jn' },
       { onConflict: 'id' }
     );
     if (error) console.warn('[CRIPTA] ensureUser:', error.message);
