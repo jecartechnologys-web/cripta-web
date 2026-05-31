@@ -16,7 +16,7 @@
  */
 export const CONFIG = Object.freeze({
   SUPABASE_URL: 'https://myaazbpmhapnqoauqlri.supabase.co',
-  SUPABASE_KEY: 'eyJhbG...0umg',
+  SUPABASE_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15YWF6YnBtaGFwbnFvYXVxbHJpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NDA2MTMsImV4cCI6MjA5NTUxNjYxM30.2MWlrQiz6ClP7mkOxrCVQFB0JiWGxq0RUDpNqJ20umg',
   DEVICE_ID_KEY: 'cripta_device_id'
 });
 
